@@ -2,6 +2,8 @@
 
 **Date:** 2026-04-07
 **Status:** Approved
+**Package:** `hephaestus_oban`
+**Depends on:** [Core Workflow Tags & Metadata](2026-04-07-core-workflow-tags-metadata-design.md)
 
 ## Problem
 
@@ -15,36 +17,11 @@ The `META` field on all jobs is currently `%{}` (empty).
 
 ## Solution
 
-Add `tags` and `metadata` support at the workflow definition level (core `Hephaestus.Workflow` macro) and automatically populate Oban job `meta` and `tags` fields in `hephaestus_oban`.
+Automatically populate Oban job `meta` and `tags` fields using the workflow's `__tags__/0` and `__metadata__/0` (provided by the core macro), plus auto-derived workflow name, instance ID, and step name.
 
 ## Design
 
-### 1. Core Change: `Hephaestus.Workflow` macro
-
-The `__using__/1` macro accepts optional `tags` and `metadata` opts and generates accessor functions:
-
-```elixir
-defmodule MyApp.Workflows.OnboardFlow do
-  use Hephaestus.Workflow,
-    tags: ["onboarding", "growth"],
-    metadata: %{"team" => "growth"}
-
-  @impl true
-  def start, do: MyApp.Steps.ValidateUser
-
-  @impl true
-  def transit(MyApp.Steps.ValidateUser, :valid, _ctx), do: MyApp.Steps.ProcessPayment
-  # ...
-end
-```
-
-The macro generates:
-- `__tags__/0` returning `["onboarding", "growth"]` (default: `[]`)
-- `__metadata__/0` returning `%{"team" => "growth"}` (default: `%{}`)
-
-These are generic (no Oban-specific naming) and available to any runner.
-
-### 2. `hephaestus_oban` — `JobMetadata` helper
+### 1. `JobMetadata` helper module
 
 New module `HephaestusOban.JobMetadata` centralizes meta/tags construction:
 
@@ -74,8 +51,6 @@ defmodule HephaestusOban.JobMetadata do
 
   # Takes the last segment of a module name and underscores it.
   # MyApp.Workflows.OnboardFlow -> "onboard_flow"
-  # Uses Module.split/1 + List.last/1 + Macro.underscore/1 to extract
-  # only the terminal segment (not the full namespace path).
   defp short_name(module) when is_atom(module) do
     module |> Module.split() |> List.last() |> Macro.underscore()
   end
@@ -102,13 +77,11 @@ defmodule HephaestusOban.JobMetadata do
 end
 ```
 
-**Name conversion algorithm:** `Module.split/1 |> List.last/1 |> Macro.underscore/1` — extracts only the terminal module segment, not the full namespace. This matches the existing `context_key_for/1` pattern in the core. Note: two workflows in different namespaces with the same terminal name would produce the same short name. This is acceptable since the full module string is available in `job.args["workflow"]` for disambiguation.
+**Name conversion:** `Module.split/1 |> List.last/1 |> Macro.underscore/1` — extracts only the terminal segment. Matches the existing `context_key_for/1` pattern in the core. Two workflows with the same terminal name produce the same short name; the full module string in `job.args["workflow"]` provides disambiguation.
 
-**`step_ref` type:** Accepts both atoms (when the module is in scope) and strings (when read from `job.args["step_ref"]`).
+**Merge precedence:** System keys (`workflow`, `instance_id`, `step`) always win over custom metadata.
 
-**Merge precedence:** System-generated keys (`workflow`, `instance_id`, `step`) always take precedence over custom metadata to prevent accidental overwrites.
-
-### 3. Workflow propagation via args
+### 2. Workflow propagation via args
 
 All jobs include `"workflow"` in their args to propagate the workflow module without extra DB lookups:
 
@@ -120,9 +93,11 @@ All jobs include `"workflow"` in their args to propagate the workflow module wit
 }
 ```
 
-This does not affect unique constraints (which use `keys: [:instance_id]` and `keys: [:instance_id, :step_ref]`). The `"workflow"` arg value is the full `to_string(module)` form (e.g., `"Elixir.MyApp.Workflows.OnboardFlow"`) for reliable `String.to_existing_atom/1` round-tripping. The human-friendly short name lives only in `meta`.
+The `"workflow"` value is the full `to_string(module)` form (e.g., `"Elixir.MyApp.Workflows.OnboardFlow"`) for reliable `String.to_existing_atom/1` round-tripping. The human-friendly short name lives only in `meta`.
 
-### 4. Affected job creation points
+This does not affect unique constraints (which use `keys: [:instance_id]` and `keys: [:instance_id, :step_ref]`).
+
+### 3. Affected job creation points
 
 | Location | Worker Created | `workflow` source | `step_ref` source |
 |---|---|---|---|
@@ -134,7 +109,9 @@ This does not affect unique constraints (which use `keys: [:instance_id]` and `k
 | `runner.ex:schedule_resume` | ResumeWorker | `instance.workflow` | function param |
 | `runner.ex:insert_resume_job` | ResumeWorker | `instance.workflow` | function param |
 
-### 5. Resulting Oban Web experience
+At each point, the pattern is: resolve `workflow_module`, call `JobMetadata.build/3`, merge resulting opts into the job changeset.
+
+### 4. Resulting Oban Web experience
 
 **ExecuteStepWorker job:**
 ```elixir
@@ -147,7 +124,7 @@ meta: %{
 }
 ```
 
-**AdvanceWorker job (after a step completes):**
+**AdvanceWorker job (after step completes):**
 ```elixir
 tags: ["onboard_flow", "onboarding", "growth"]
 meta: %{
@@ -176,20 +153,9 @@ meta.step:validate_user       -> all executions of a specific step
 meta.team:growth              -> custom developer filter
 ```
 
-## Packages affected and release sequence
-
-1. **`hephaestus` (core)** — `Hephaestus.Workflow.__using__/1`: accept `tags`/`metadata` opts, generate `__tags__/0` and `__metadata__/0`. **Must be released first.**
-2. **`hephaestus_oban`** — new `JobMetadata` module + changes to all job creation points + `"workflow"` in args. Bump `hephaestus` dependency to require the new core version.
-
-## Validation
-
-The core macro should validate inputs at compile time:
-- `tags` must be a list of strings (or atoms convertible to strings). Raise `CompileError` otherwise.
-- `metadata` must be a map. Raise `CompileError` otherwise.
-
 ## Compatibility
 
-- Zero breaking changes: `tags` defaults to `[]`, `metadata` defaults to `%{}`
-- Existing workflows without opts continue to work (get auto-generated workflow name tag only)
+- Zero breaking changes to existing job creation
 - `function_exported?/3` check in `JobMetadata` makes it resilient to workflows compiled before the core change
-- Note: Oban Web (Pro) is required for the filtering UI, but the meta/tags on job records are useful regardless for queries, telemetry, and logging
+- Bump `hephaestus` dependency to require core version with `__tags__/0` and `__metadata__/0`
+- Note: Oban Web (Pro) is required for the filtering UI, but meta/tags on job records are useful regardless for queries, telemetry, and logging
