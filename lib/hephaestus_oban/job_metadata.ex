@@ -1,6 +1,50 @@
 defmodule HephaestusOban.JobMetadata do
-  @moduledoc false
+  @moduledoc """
+  Builds Oban job `meta` and `tags` from workflow module attributes.
 
+  Every Oban job created by `HephaestusOban` is enriched with metadata that
+  enables filtering in Oban Web. This module centralizes that logic so all
+  workers produce consistent metadata.
+
+  ## Auto-populated fields
+
+  | Meta key | Source | Example |
+  |----------|--------|---------|
+  | `heph_workflow` | Last segment of workflow module, snake_cased | `"onboard_flow"` |
+  | `instance_id` | Workflow execution UUID | `"CBD700A6-..."` |
+  | `step` | Last segment of step module, snake_cased (when applicable) | `"validate_user"` |
+
+  Custom tags and metadata defined via `use Hephaestus.Workflow` are merged in.
+  System keys (`heph_workflow`, `instance_id`, `step`) always take precedence
+  over custom metadata to prevent accidental overwrites.
+
+  ## Name conversion
+
+  Module names are shortened using `Module.split/1 |> List.last/1 |> Macro.underscore/1`,
+  matching the `context_key_for/1` convention in the core. For example:
+
+    * `MyApp.Workflows.OnboardFlow` → `"onboard_flow"`
+    * `MyApp.Steps.ValidateUser` → `"validate_user"`
+  """
+
+  @doc """
+  Builds a keyword list of Oban job options (`meta` and `tags`) for the given
+  workflow module and instance.
+
+  ## Options
+
+    * `:step_ref` — the step module (atom) or stringified module name. When provided,
+      a `"step"` key is added to `meta` with the snake_cased short name.
+
+  ## Examples
+
+      iex> HephaestusOban.JobMetadata.build(MyApp.Workflows.OnboardFlow, "abc-123")
+      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123"}, tags: ["onboard_flow"]]
+
+      iex> HephaestusOban.JobMetadata.build(MyApp.Workflows.OnboardFlow, "abc-123", step_ref: MyApp.Steps.ValidateUser)
+      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123", "step" => "validate_user"}, tags: ["onboard_flow"]]
+
+  """
   @spec build(module(), String.t(), keyword()) :: [meta: map(), tags: [String.t()]]
   def build(workflow_module, instance_id, opts \\ []) do
     step_ref = Keyword.get(opts, :step_ref)
@@ -19,6 +63,12 @@ defmodule HephaestusOban.JobMetadata do
     [meta: meta, tags: tags]
   end
 
+  @doc """
+  Converts a workflow module string (from job args) back to the module atom.
+
+  Uses `String.to_existing_atom/1` — safe because workflow modules are always
+  compiled and loaded before any job referencing them can execute.
+  """
   @spec resolve_workflow(String.t()) :: module()
   def resolve_workflow(workflow_string) when is_binary(workflow_string) do
     String.to_existing_atom(workflow_string)
