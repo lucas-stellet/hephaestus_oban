@@ -6,9 +6,10 @@
 
 ## Changelog
 
-This project maintains a `CHANGELOG.md` at the root. When releasing a new version:
+This project maintains a `CHANGELOG.md` following the [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) format.
+When releasing a new version:
 
-1. Add a new section to `CHANGELOG.md` following the existing format (`## vX.Y.Z (YYYY-MM-DD)`)
+1. Add a new section to `CHANGELOG.md` using the standard categories (`Added`, `Changed`, `Deprecated`, `Removed`, `Fixed`, `Security`)
 2. The changelog is registered in `mix.exs` under `docs/extras` (hexdocs sidebar) and `package/files` (hex.pm package)
 
 ## Commands
