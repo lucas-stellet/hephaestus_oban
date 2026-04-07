@@ -1,15 +1,22 @@
 defmodule HephaestusOban.MixProject do
   use Mix.Project
 
+  @version "0.1.0"
+  @source_url "https://github.com/lucas-stellet/hephaestus_oban"
+
   def project do
     [
       app: :hephaestus_oban,
-      version: "0.1.0",
+      version: @version,
       elixir: "~> 1.19",
       start_permanent: Mix.env() == :prod,
       elixirc_paths: elixirc_paths(Mix.env()),
       aliases: aliases(),
-      deps: deps()
+      deps: deps(),
+      description: description(),
+      package: package(),
+      docs: docs(),
+      source_url: @source_url
     ]
   end
 
@@ -25,11 +32,36 @@ defmodule HephaestusOban.MixProject do
 
   defp deps do
     [
-      {:hephaestus, path: "../hephaestus_core", override: true},
-      {:hephaestus_ecto, path: "../hephaestus_ecto"},
+      {:hephaestus, "~> 0.1.0"},
+      {:hephaestus_ecto, "~> 0.1.0"},
       {:oban, "~> 2.14"},
       {:ecto_sql, "~> 3.10"},
-      {:postgrex, ">= 0.0.0"}
+      {:postgrex, ">= 0.0.0"},
+      {:ex_doc, "~> 0.35", only: :dev, runtime: false}
+    ]
+  end
+
+  defp description do
+    "Oban-based runner adapter for the Hephaestus workflow engine. " <>
+      "Durable jobs with retry/backoff, advisory lock serialization, " <>
+      "and zero-contention parallel step execution via an auxiliary step_results table."
+  end
+
+  defp package do
+    [
+      licenses: ["MIT"],
+      links: %{
+        "GitHub" => @source_url
+      },
+      files: ~w(lib .formatter.exs mix.exs README.md LICENSE)
+    ]
+  end
+
+  defp docs do
+    [
+      main: "readme",
+      extras: ["README.md"],
+      source_ref: "v#{@version}"
     ]
   end
 
