@@ -4,6 +4,7 @@ defmodule HephaestusOban.Runner do
   alias Hephaestus.Core.Instance
   alias Hephaestus.Runtime.Runner, as: RunnerBehaviour
   alias HephaestusOban.{AdvanceWorker, FailureHandler, ResumeWorker}
+  alias HephaestusOban.JobMetadata
 
   @behaviour RunnerBehaviour
 
@@ -45,11 +46,17 @@ defmodule HephaestusOban.Runner do
     instance = Instance.new(workflow, context)
     :ok = storage_put(storage, instance)
 
+    job_meta = JobMetadata.build(workflow, instance.id)
+
     changeset =
-      AdvanceWorker.new(%{
-        "instance_id" => instance.id,
-        "config_key" => config_key
-      })
+      AdvanceWorker.new(
+        %{
+          "instance_id" => instance.id,
+          "config_key" => config_key,
+          "workflow" => to_string(workflow)
+        },
+        job_meta
+      )
 
     case Oban.insert(oban, changeset) do
       {:ok, _job} -> {:ok, instance.id}
@@ -76,16 +83,19 @@ defmodule HephaestusOban.Runner do
           {:ok, integer()} | {:error, :instance_not_found | term()}
   def schedule_resume(instance_id, step_ref, delay_ms)
       when is_binary(instance_id) and is_atom(step_ref) and is_integer(delay_ms) and delay_ms > 0 do
-    with {:ok, config, _instance} <- load_instance_config(instance_id) do
+    with {:ok, config, instance} <- load_instance_config(instance_id) do
+      job_meta = JobMetadata.build(instance.workflow, instance_id, step_ref: step_ref)
+
       changeset =
         ResumeWorker.new(
           %{
             "instance_id" => instance_id,
             "step_ref" => to_string(step_ref),
             "event" => "timeout",
-            "config_key" => config.key
+            "config_key" => config.key,
+            "workflow" => to_string(instance.workflow)
           },
-          scheduled_at: DateTime.add(DateTime.utc_now(), delay_ms, :millisecond)
+          [scheduled_at: DateTime.add(DateTime.utc_now(), delay_ms, :millisecond)] ++ job_meta
         )
 
       case Oban.insert(config.oban, changeset) do
@@ -96,13 +106,20 @@ defmodule HephaestusOban.Runner do
   end
 
   defp insert_resume_job(config, instance_id, step_ref, event) do
+    instance = load_instance(config, instance_id)
+    job_meta = JobMetadata.build(instance.workflow, instance_id, step_ref: step_ref)
+
     changeset =
-      ResumeWorker.new(%{
-        "instance_id" => instance_id,
-        "step_ref" => to_string(step_ref),
-        "event" => event,
-        "config_key" => config.key
-      })
+      ResumeWorker.new(
+        %{
+          "instance_id" => instance_id,
+          "step_ref" => to_string(step_ref),
+          "event" => event,
+          "config_key" => config.key,
+          "workflow" => to_string(instance.workflow)
+        },
+        job_meta
+      )
 
     Oban.insert(config.oban, changeset)
   end
@@ -116,6 +133,15 @@ defmodule HephaestusOban.Runner do
         {:error, :not_found} -> nil
       end
     end)
+  end
+
+  defp load_instance(config, instance_id) do
+    {storage_mod, storage_name} = config.storage
+
+    case storage_mod.get(storage_name, instance_id) do
+      {:ok, instance} -> instance
+      {:error, :not_found} -> raise "workflow instance not found: #{instance_id}"
+    end
   end
 
   defp config_entries(_prefix) do

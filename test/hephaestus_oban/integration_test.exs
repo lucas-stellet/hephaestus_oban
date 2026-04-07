@@ -113,6 +113,86 @@ defmodule HephaestusOban.IntegrationTest do
     end
   end
 
+  describe "meta/tags propagation" do
+    test "start_instance → AdvanceWorker has workflow meta (no step)", ctx do
+      opts = runner_opts(ctx)
+      {:ok, instance_id} = Runner.start_instance(HephaestusOban.Test.TaggedWorkflow, %{}, opts)
+
+      job =
+        all_enqueued(worker: HephaestusOban.AdvanceWorker)
+        |> Enum.find(fn j -> j.args["instance_id"] == instance_id end)
+
+      assert job
+      assert job.args["workflow"] == to_string(HephaestusOban.Test.TaggedWorkflow)
+      assert "tagged_workflow" in job.tags
+      assert "onboarding" in job.tags
+      assert "growth" in job.tags
+      assert job.meta["heph_workflow"] == "tagged_workflow"
+      assert job.meta["instance_id"] == instance_id
+      assert job.meta["team"] == "growth"
+      refute Map.has_key?(job.meta, "step")
+    end
+
+    test "meta/tags propagate through advance → execute → advance chain", ctx do
+      opts = runner_opts(ctx)
+      {:ok, instance_id} = Runner.start_instance(HephaestusOban.Test.TaggedWorkflow, %{}, opts)
+
+      # Process initial AdvanceWorker
+      advance_job =
+        all_enqueued(worker: HephaestusOban.AdvanceWorker)
+        |> Enum.find(fn j -> j.args["instance_id"] == instance_id end)
+
+      assert advance_job
+      perform_job(HephaestusOban.AdvanceWorker, advance_job.args)
+
+      # Check ExecuteStepWorker
+      exec_job =
+        all_enqueued(worker: HephaestusOban.ExecuteStepWorker)
+        |> Enum.find(fn j -> j.args["instance_id"] == instance_id end)
+
+      assert exec_job
+      assert exec_job.args["workflow"] == to_string(HephaestusOban.Test.TaggedWorkflow)
+      assert exec_job.meta["step"] == "pass_step"
+      assert exec_job.meta["team"] == "growth"
+      assert "onboarding" in exec_job.tags
+
+      # Process ExecuteStepWorker — creates next AdvanceWorker
+      import Ecto.Query
+      query = from(j in Oban.Job,
+        where: j.worker == ^"HephaestusOban.AdvanceWorker",
+        where: fragment("?->>? = ?", j.args, "instance_id", ^instance_id)
+      )
+      {:ok, _} = Oban.cancel_all_jobs(Oban, query)
+      perform_job(HephaestusOban.ExecuteStepWorker, exec_job.args)
+
+      # Check the chained AdvanceWorker preserves workflow + step
+      chained_job =
+        all_enqueued(worker: HephaestusOban.AdvanceWorker)
+        |> Enum.find(fn j -> j.args["instance_id"] == instance_id and Map.has_key?(j.meta, "step") end)
+
+      assert chained_job
+      assert chained_job.args["workflow"] == to_string(HephaestusOban.Test.TaggedWorkflow)
+      assert chained_job.meta["heph_workflow"] == "tagged_workflow"
+      assert chained_job.meta["instance_id"] == instance_id
+      assert chained_job.meta["team"] == "growth"
+    end
+
+    test "untagged workflow gets system meta only", ctx do
+      opts = runner_opts(ctx)
+      {:ok, instance_id} = Runner.start_instance(HephaestusOban.Test.LinearWorkflow, %{}, opts)
+
+      job =
+        all_enqueued(worker: HephaestusOban.AdvanceWorker)
+        |> Enum.find(fn j -> j.args["instance_id"] == instance_id end)
+
+      assert job
+      assert job.meta["heph_workflow"] == "linear_workflow"
+      assert job.meta["instance_id"] == instance_id
+      refute Map.has_key?(job.meta, "team")
+      assert job.tags == ["linear_workflow"]
+    end
+  end
+
   defp runner_opts(ctx) do
     [storage: {HephaestusEcto.Storage, ctx.storage_name}, config_key: ctx.config_key, oban: Oban]
   end

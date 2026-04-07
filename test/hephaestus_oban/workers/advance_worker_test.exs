@@ -31,7 +31,7 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
   end
 
   describe "perform/1 — pending instance with no step_results" do
-    test "advances pending instance to running and enqueues ExecuteStepWorker jobs", ctx do
+    test "advances pending instance to running and enqueues ExecuteStepWorker with workflow + meta/tags", ctx do
       instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
@@ -44,6 +44,14 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
       assert MapSet.size(updated.active_steps) > 0
 
       assert_enqueued_execute_steps(updated.active_steps, instance.id, ctx.config_key)
+
+      # Validate meta/tags/workflow on one enqueued ExecuteStepWorker
+      assert [exec_job | _] = all_enqueued(worker: HephaestusOban.ExecuteStepWorker)
+      assert exec_job.args["workflow"] == "Elixir.HephaestusOban.Test.LinearWorkflow"
+      assert exec_job.meta["heph_workflow"] == "linear_workflow"
+      assert exec_job.meta["instance_id"] == instance.id
+      assert is_binary(exec_job.meta["step"]) and exec_job.meta["step"] != ""
+      assert "linear_workflow" in exec_job.tags
     end
   end
 
@@ -161,7 +169,8 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
         args: %{
           "instance_id" => instance_id,
           "config_key" => config_key,
-          "step_ref" => to_string(step_module)
+          "step_ref" => to_string(step_module),
+          "workflow" => "Elixir.HephaestusOban.Test.LinearWorkflow"
         }
       )
     end)

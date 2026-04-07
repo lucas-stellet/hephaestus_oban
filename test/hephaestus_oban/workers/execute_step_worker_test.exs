@@ -37,7 +37,7 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(ctx.config_key, instance.id, step_ref, to_string(HephaestusOban.Test.LinearWorkflow))
 
       # Act
       assert :ok = ExecuteStepWorker.perform(job)
@@ -47,10 +47,11 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       assert result.step_ref == step_ref
       assert result.event == "done"
 
-      assert_enqueued(
-        worker: HephaestusOban.AdvanceWorker,
-        args: %{"instance_id" => instance.id, "config_key" => ctx.config_key}
-      )
+      assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.LinearWorkflow)
+      assert advance_job.meta["heph_workflow"] == "linear_workflow"
+      assert advance_job.meta["step"] == "pass_step"
+      assert "linear_workflow" in advance_job.tags
     end
   end
 
@@ -62,7 +63,7 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       instance = %{instance | active_steps: MapSet.new([HephaestusOban.Test.PassWithContextStep])}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassWithContextStep)
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(ctx.config_key, instance.id, step_ref, to_string(HephaestusOban.Test.LinearWorkflow))
 
       # Act
       assert :ok = ExecuteStepWorker.perform(job)
@@ -80,7 +81,7 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(ctx.config_key, instance.id, step_ref, to_string(HephaestusOban.Test.AsyncWorkflow))
 
       # Act
       assert :ok = ExecuteStepWorker.perform(job)
@@ -90,10 +91,11 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       assert result.event == "__async__"
       assert result.step_ref == step_ref
 
-      assert_enqueued(
-        worker: HephaestusOban.AdvanceWorker,
-        args: %{"instance_id" => instance.id, "config_key" => ctx.config_key}
-      )
+      assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.AsyncWorkflow)
+      assert advance_job.meta["heph_workflow"] == "async_workflow"
+      assert advance_job.meta["step"] == "async_step"
+      assert "async_workflow" in advance_job.tags
     end
   end
 
@@ -105,7 +107,7 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       instance = %{instance | active_steps: MapSet.new([HephaestusOban.Test.FailStep])}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.FailStep)
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(ctx.config_key, instance.id, step_ref, to_string(HephaestusOban.Test.LinearWorkflow))
 
       # Act
       result = ExecuteStepWorker.perform(job)
@@ -124,7 +126,7 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
       :ok = StepResults.insert(ctx.repo, instance.id, step_ref, "done", %{})
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(ctx.config_key, instance.id, step_ref, to_string(HephaestusOban.Test.LinearWorkflow))
 
       # Act
       result = ExecuteStepWorker.perform(job)
@@ -142,7 +144,12 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
-      job = execute_job(ctx.config_key, instance.id, step_ref)
+      job = execute_job(
+        ctx.config_key,
+        instance.id,
+        step_ref,
+        to_string(HephaestusOban.Test.LinearWorkflow)
+      )
 
       # Act
       assert :ok = ExecuteStepWorker.perform(job)
@@ -150,19 +157,21 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       # Assert
       assert length(StepResults.pending_for(ctx.repo, instance.id)) == 1
 
-      assert_enqueued(
-        worker: HephaestusOban.AdvanceWorker,
-        args: %{"instance_id" => instance.id, "config_key" => ctx.config_key}
-      )
+      assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.LinearWorkflow)
+      assert advance_job.meta["heph_workflow"] == "linear_workflow"
+      assert advance_job.meta["step"] == "pass_step"
+      assert "linear_workflow" in advance_job.tags
     end
   end
 
-  defp execute_job(config_key, instance_id, step_ref) do
+  defp execute_job(config_key, instance_id, step_ref, workflow) do
     %Oban.Job{
       args: %{
         "instance_id" => instance_id,
         "step_ref" => step_ref,
-        "config_key" => config_key
+        "config_key" => config_key,
+        "workflow" => workflow
       }
     }
   end

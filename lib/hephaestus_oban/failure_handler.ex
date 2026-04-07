@@ -2,6 +2,7 @@ defmodule HephaestusOban.FailureHandler do
   @moduledoc false
 
   @execute_step_worker HephaestusOban.ExecuteStepWorker |> Module.split() |> Enum.join(".")
+  alias HephaestusOban.JobMetadata
 
   def attach do
     :telemetry.attach(
@@ -18,14 +19,20 @@ defmodule HephaestusOban.FailureHandler do
 
       %{
         "instance_id" => instance_id,
-        "config_key" => config_key
+        "config_key" => config_key,
+        "step_ref" => step_ref,
+        "workflow" => workflow_string
       } = job.args
+
+      workflow_module = JobMetadata.resolve_workflow(workflow_string)
+      job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_ref)
 
       %{
         "instance_id" => instance_id,
-        "config_key" => config_key
+        "config_key" => config_key,
+        "workflow" => workflow_string
       }
-      |> HephaestusOban.AdvanceWorker.new()
+      |> HephaestusOban.AdvanceWorker.new(job_meta)
       |> then(&Oban.insert(config.oban, &1))
     else
       :ok

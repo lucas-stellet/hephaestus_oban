@@ -39,7 +39,7 @@ defmodule HephaestusOban.FailureHandlerTest do
   end
 
   describe "handle_event/4 for discarded ExecuteStepWorker jobs" do
-    test "enqueues AdvanceWorker when ExecuteStepWorker is discarded", ctx do
+    test "AdvanceWorker created on discard has correct meta and tags", ctx do
       # Arrange
       instance_id = Ecto.UUID.generate()
 
@@ -47,8 +47,9 @@ defmodule HephaestusOban.FailureHandlerTest do
         worker: @execute_step_worker,
         args: %{
           "instance_id" => instance_id,
-          "step_ref" => "Elixir.SomeStep",
-          "config_key" => ctx.config_key
+          "step_ref" => to_string(HephaestusOban.Test.FailStep),
+          "config_key" => ctx.config_key,
+          "workflow" => to_string(HephaestusOban.Test.LinearWorkflow)
         },
         queue: "hephaestus"
       }
@@ -63,10 +64,12 @@ defmodule HephaestusOban.FailureHandlerTest do
                )
 
       # Assert
-      assert_enqueued(
-        worker: HephaestusOban.AdvanceWorker,
-        args: %{"instance_id" => instance_id, "config_key" => ctx.config_key}
-      )
+      assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.LinearWorkflow)
+      assert advance_job.meta["heph_workflow"] == "linear_workflow"
+      assert advance_job.meta["step"] == "fail_step"
+      assert advance_job.meta["instance_id"] == instance_id
+      assert "linear_workflow" in advance_job.tags
     end
   end
 

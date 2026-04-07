@@ -45,7 +45,7 @@ defmodule HephaestusOban.RunnerTest do
   end
 
   describe "start_instance/3" do
-    test "persists new instance and enqueues AdvanceWorker", ctx do
+    test "persists new instance and enqueues AdvanceWorker with workflow + meta/tags", ctx do
       setup_runner_config(ctx)
 
       opts = [
@@ -66,11 +66,17 @@ defmodule HephaestusOban.RunnerTest do
         worker: HephaestusOban.AdvanceWorker,
         args: %{"instance_id" => instance_id, "config_key" => ctx.config_key}
       )
+
+      assert [job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert job.args["workflow"] == "Elixir.HephaestusOban.Test.LinearWorkflow"
+      assert "linear_workflow" in job.tags
+      assert job.meta["heph_workflow"] == "linear_workflow"
+      assert job.meta["instance_id"] == instance_id
     end
   end
 
   describe "resume/2" do
-    test "enqueues ResumeWorker with current_step and event", ctx do
+    test "enqueues ResumeWorker with current_step, event, workflow + meta/tags", ctx do
       setup_runner_config(ctx)
 
       instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
@@ -95,11 +101,18 @@ defmodule HephaestusOban.RunnerTest do
           "config_key" => ctx.config_key
         }
       )
+
+      assert [job] = all_enqueued(worker: HephaestusOban.ResumeWorker)
+      assert job.args["workflow"] == "Elixir.HephaestusOban.Test.AsyncWorkflow"
+      assert "async_workflow" in job.tags
+      assert job.meta["heph_workflow"] == "async_workflow"
+      assert job.meta["instance_id"] == instance.id
+      assert job.meta["step"] == "async_step"
     end
   end
 
   describe "schedule_resume/3" do
-    test "enqueues ResumeWorker with scheduled_at and returns job_id", ctx do
+    test "enqueues ResumeWorker with scheduled_at, workflow + meta/tags and returns job_id", ctx do
       setup_runner_config(ctx)
 
       instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
@@ -129,6 +142,13 @@ defmodule HephaestusOban.RunnerTest do
           "config_key" => ctx.config_key
         }
       )
+
+      assert [job] = all_enqueued(worker: HephaestusOban.ResumeWorker)
+      assert job.args["workflow"] == "Elixir.HephaestusOban.Test.AsyncWorkflow"
+      assert "async_workflow" in job.tags
+      assert job.meta["heph_workflow"] == "async_workflow"
+      assert job.meta["instance_id"] == instance.id
+      assert job.meta["step"] == "async_step"
     end
 
     test "scheduled_at is approximately delay_ms in the future", ctx do

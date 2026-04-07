@@ -19,3 +19,15 @@ defmodule HephaestusOban.Test.AsyncWorkflow do
   @impl true
   def transit(HephaestusOban.Test.AsyncStep, :resumed, _ctx), do: Hephaestus.Steps.Done
 end
+
+defmodule HephaestusOban.Test.TaggedWorkflow do
+  use Hephaestus.Workflow,
+    tags: ["onboarding", "growth"],
+    metadata: %{"team" => "growth"}
+
+  @impl true
+  def start, do: HephaestusOban.Test.PassStep
+
+  @impl true
+  def transit(HephaestusOban.Test.PassStep, :done, _ctx), do: Hephaestus.Steps.Done
+end

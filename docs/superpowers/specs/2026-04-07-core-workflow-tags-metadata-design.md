@@ -23,6 +23,9 @@ defmacro __using__(opts) do
   tags = Keyword.get(opts, :tags, [])
   metadata = Keyword.get(opts, :metadata, %{})
 
+  validate_tags!(tags)
+  validate_metadata!(metadata)
+
   quote do
     @behaviour Hephaestus.Core.Workflow
     Module.register_attribute(__MODULE__, unquote(@dynamic_edges_attr), accumulate: true)
@@ -33,6 +36,8 @@ defmacro __using__(opts) do
     @doc false
     def __tags__, do: unquote(tags)
     @doc false
+    # Macro.escape/1 is required for the map — lists of strings are valid AST
+    # literals and don't need escaping.
     def __metadata__, do: unquote(Macro.escape(metadata))
   end
 end
@@ -61,9 +66,53 @@ These are generic and runner-agnostic. Any adapter can call `workflow_module.__t
 
 ### Compile-time validation
 
-The macro validates inputs before generating code:
-- `tags` must be a list of strings. Raises `CompileError` otherwise.
-- `metadata` must be a map. Raises `CompileError` otherwise.
+Validation runs at macro expansion time, **before** generating code. Invalid inputs produce clear `CompileError` messages pointing to the offending workflow module.
+
+```elixir
+defp validate_tags!(tags) do
+  unless is_list(tags) and Enum.all?(tags, &is_binary/1) do
+    raise CompileError,
+      description: "expected :tags to be a list of strings, got: #{inspect(tags)}"
+  end
+end
+
+defp validate_metadata!(metadata) do
+  unless is_map(metadata) do
+    raise CompileError,
+      description: "expected :metadata to be a map, got: #{inspect(metadata)}"
+  end
+
+  unless Enum.all?(metadata, fn {k, _v} -> is_binary(k) end) do
+    raise CompileError,
+      description:
+        "expected :metadata keys to be strings (atom keys would lose identity " <>
+          "after JSON round-tripping in adapters like Oban), got: #{inspect(metadata)}"
+  end
+
+  unless json_safe_values?(metadata) do
+    raise CompileError,
+      description:
+        "expected :metadata values to be JSON-safe (strings, numbers, booleans, " <>
+          "or nested maps/lists of the same), got: #{inspect(metadata)}"
+  end
+end
+
+defp json_safe_values?(map) when is_map(map) do
+  Enum.all?(map, fn {_k, v} -> json_safe_value?(v) end)
+end
+
+defp json_safe_value?(v) when is_binary(v), do: true
+defp json_safe_value?(v) when is_number(v), do: true
+defp json_safe_value?(v) when is_boolean(v), do: true
+defp json_safe_value?(v) when is_nil(v), do: true
+defp json_safe_value?(v) when is_list(v), do: Enum.all?(v, &json_safe_value?/1)
+defp json_safe_value?(v) when is_map(v), do: json_safe_values?(v)
+defp json_safe_value?(_), do: false
+```
+
+**Rationale for JSON-safety check:** Metadata is designed for serialized observability (Oban Web, telemetry, logging). Allowing arbitrary Elixir terms (functions, PIDs, refs) would compile fine but fail at runtime when the Oban adapter serializes to JSONB. Catching this at compile time prevents a class of subtle runtime errors.
+
+**Rationale for string-key enforcement:** Atom keys in metadata (e.g., `%{team: "growth"}`) would lose their identity after JSON round-tripping — `team` becomes `"team"`. Enforcing string keys at definition time ensures the developer sees exactly what adapters will store.
 
 ### Compatibility
 

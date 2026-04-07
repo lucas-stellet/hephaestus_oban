@@ -13,6 +13,7 @@ defmodule HephaestusOban.AdvanceWorker do
 
   alias Hephaestus.Core.Engine
   alias HephaestusOban.{RetryConfig, StepResults}
+  alias HephaestusOban.JobMetadata
 
   @execute_step_worker HephaestusOban.ExecuteStepWorker |> Module.split() |> Enum.join(".")
   @cancellable_states ["available", "scheduled", "executing", "retryable"]
@@ -111,17 +112,21 @@ defmodule HephaestusOban.AdvanceWorker do
 
   defp enqueue_execute_step(config, instance_id, workflow_module, step_module) do
     retry = RetryConfig.resolve(step_module, workflow_module)
+    job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_module)
 
     changeset =
       Oban.Job.new(
         %{
           "instance_id" => instance_id,
           "config_key" => config.key,
-          "step_ref" => to_string(step_module)
+          "step_ref" => to_string(step_module),
+          "workflow" => to_string(workflow_module)
         },
-        queue: :hephaestus,
-        worker: HephaestusOban.ExecuteStepWorker,
-        max_attempts: retry.max_attempts
+        [
+          queue: :hephaestus,
+          worker: HephaestusOban.ExecuteStepWorker,
+          max_attempts: retry.max_attempts
+        ] ++ job_meta
       )
 
     Oban.insert(config.oban, changeset)

@@ -51,7 +51,7 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
     test "inserts step_result with event and enqueues AdvanceWorker", ctx do
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
 
-      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed")
+      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed", to_string(HephaestusOban.Test.AsyncWorkflow))
       assert :ok = ResumeWorker.perform(job)
 
       [result] = StepResults.pending_for(ctx.repo, ctx.instance.id)
@@ -59,10 +59,11 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
       assert result.event == "resumed"
       assert result.context_updates == %{}
 
-      assert_enqueued(
-        worker: HephaestusOban.AdvanceWorker,
-        args: %{"instance_id" => ctx.instance.id, "config_key" => ctx.config_key}
-      )
+      assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.AsyncWorkflow)
+      assert advance_job.meta["heph_workflow"] == "async_workflow"
+      assert advance_job.meta["step"] == "async_step"
+      assert "async_workflow" in advance_job.tags
     end
   end
 
@@ -70,7 +71,7 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
     test "instance status remains unchanged after ResumeWorker runs", ctx do
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
 
-      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed")
+      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed", to_string(HephaestusOban.Test.AsyncWorkflow))
       assert :ok = ResumeWorker.perform(job)
 
       {:ok, instance} = HephaestusEcto.Storage.get(ctx.storage_name, ctx.instance.id)
@@ -83,7 +84,7 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
     test "step_result insert and AdvanceWorker enqueue are in same transaction", ctx do
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
 
-      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed")
+      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "resumed", to_string(HephaestusOban.Test.AsyncWorkflow))
       assert :ok = ResumeWorker.perform(job)
 
       assert length(StepResults.pending_for(ctx.repo, ctx.instance.id)) == 1
@@ -99,7 +100,7 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
     test "handles timeout event from scheduled resume", ctx do
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
 
-      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "timeout")
+      job = resume_job(ctx.config_key, ctx.instance.id, step_ref, "timeout", to_string(HephaestusOban.Test.AsyncWorkflow))
       assert :ok = ResumeWorker.perform(job)
 
       [result] = StepResults.pending_for(ctx.repo, ctx.instance.id)
@@ -107,13 +108,14 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
     end
   end
 
-  defp resume_job(config_key, instance_id, step_ref, event) do
+  defp resume_job(config_key, instance_id, step_ref, event, workflow) do
     %Oban.Job{
       args: %{
         "instance_id" => instance_id,
         "step_ref" => step_ref,
         "event" => event,
-        "config_key" => config_key
+        "config_key" => config_key,
+        "workflow" => workflow
       }
     }
   end
