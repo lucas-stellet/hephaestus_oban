@@ -11,7 +11,7 @@ Add to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:hephaestus_oban, "~> 0.1.0"}
+    {:hephaestus_oban, "~> 0.2.0"}
   ]
 end
 ```
@@ -116,6 +116,48 @@ MyApp.Hephaestus.schedule_resume(instance_id, :wait_step, 30_000)
 # Returns {:ok, job_id} — cancellable via Oban.cancel_job/1
 ```
 
+## Observability — Workflow metadata and tags
+
+All Oban jobs are automatically tagged with workflow metadata for filtering in Oban Web.
+
+### Define tags and metadata on your workflow
+
+```elixir
+defmodule MyApp.Workflows.OnboardFlow do
+  use Hephaestus.Workflow,
+    tags: ["onboarding", "growth"],
+    metadata: %{"team" => "growth"}
+
+  @impl true
+  def start, do: MyApp.Steps.ValidateUser
+
+  @impl true
+  def transit(MyApp.Steps.ValidateUser, :valid, _ctx), do: MyApp.Steps.SendWelcome
+  def transit(MyApp.Steps.SendWelcome, :sent, _ctx), do: Hephaestus.Steps.Done
+end
+```
+
+### What gets set on every Oban job
+
+| Field | Value | Example |
+|-------|-------|---------|
+| `meta.heph_workflow` | Workflow short name (snake_case) | `"onboard_flow"` |
+| `meta.instance_id` | Workflow execution UUID | `"CBD700A6-..."` |
+| `meta.step` | Step short name (when applicable) | `"validate_user"` |
+| `meta.*` | Custom metadata from workflow definition | `"team": "growth"` |
+| `tags` | Workflow short name + custom tags | `["onboard_flow", "onboarding", "growth"]` |
+
+### Filtering in Oban Web
+
+```
+tags:onboard_flow             → all jobs for this workflow type
+meta.instance_id:CBD700...    → all jobs for a specific execution
+meta.step:validate_user       → all executions of a specific step
+meta.team:growth              → custom filter
+```
+
+Workflows without tags/metadata still get automatic `heph_workflow`, `instance_id`, and `step` fields.
+
 ## Database schema
 
 ### step_results table
@@ -165,7 +207,7 @@ The `hephaestus: 10` means up to 10 Oban jobs run concurrently. In a fan-out of 
 - Elixir ~> 1.19
 - Oban >= 2.14
 - PostgreSQL (for advisory locks and JSONB)
-- [Hephaestus](https://github.com/lucas-stellet/hephaestus) ~> 0.1
+- [Hephaestus](https://github.com/lucas-stellet/hephaestus) ~> 0.1.3
 - [HephaestusEcto](https://github.com/lucas-stellet/hephaestus_ecto) ~> 0.1
 
 ## License
