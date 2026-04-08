@@ -5,12 +5,13 @@ defmodule HephaestusOban.StepResults do
 
   alias HephaestusOban.Schema.StepResult
 
-  def insert(repo, instance_id, step_ref, event, context_updates) do
+  def insert(repo, instance_id, step_ref, event, context_updates, metadata_updates \\ %{}) do
     attrs = %{
       instance_id: instance_id,
       step_ref: step_ref,
       event: event,
-      context_updates: context_updates
+      context_updates: context_updates,
+      metadata_updates: metadata_updates
     }
 
     %StepResult{}
@@ -20,8 +21,11 @@ defmodule HephaestusOban.StepResults do
       conflict_target: {:unsafe_fragment, ~s|(instance_id, step_ref) WHERE NOT processed|}
     )
     |> case do
-      {:ok, _result} -> :ok
-      {:error, changeset} -> raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
+      {:ok, _result} ->
+        :ok
+
+      {:error, changeset} ->
+        raise Ecto.InvalidChangesetError, action: :insert, changeset: changeset
     end
   end
 

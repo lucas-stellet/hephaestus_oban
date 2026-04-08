@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-04-08
+
+### Added
+
+- Runtime metadata support: `ExecuteStepWorker` handles `{:ok, event, context_updates, metadata_updates}` from steps.
+- `metadata_updates` column in `hephaestus_step_results` table.
+- `HephaestusOban.Migration.add_metadata_updates/0` for upgrading existing tables.
+- `runtime_metadata` option in `JobMetadata.build/3` — dynamic metadata from steps appears in Oban job meta.
+
+### Changed
+
+- `AdvanceWorker` passes `runtime_metadata` to `Engine.complete_step/5` and propagates it to subsequent job metadata.
+
 ## [0.2.0] - 2026-04-07
 
 ### Added

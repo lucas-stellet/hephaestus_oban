@@ -15,7 +15,11 @@ defmodule HephaestusOban.ExecuteStepWorker do
   @impl Oban.Worker
   def perform(
         %Oban.Job{
-          args: %{"instance_id" => instance_id, "step_ref" => step_ref, "workflow" => workflow_string}
+          args: %{
+            "instance_id" => instance_id,
+            "step_ref" => step_ref,
+            "workflow" => workflow_string
+          }
         } = job
       ) do
     config = resolve_config(job)
@@ -34,6 +38,7 @@ defmodule HephaestusOban.ExecuteStepWorker do
             step_ref,
             to_string(event),
             %{},
+            %{},
             workflow_string
           )
 
@@ -44,11 +49,31 @@ defmodule HephaestusOban.ExecuteStepWorker do
             step_ref,
             to_string(event),
             context_updates,
+            %{},
+            workflow_string
+          )
+
+        {:ok, event, context_updates, metadata_updates} ->
+          insert_result_and_advance(
+            config,
+            instance_id,
+            step_ref,
+            to_string(event),
+            context_updates,
+            metadata_updates,
             workflow_string
           )
 
         {:async} ->
-          insert_result_and_advance(config, instance_id, step_ref, "__async__", %{}, workflow_string)
+          insert_result_and_advance(
+            config,
+            instance_id,
+            step_ref,
+            "__async__",
+            %{},
+            %{},
+            workflow_string
+          )
 
         {:error, reason} ->
           {:error, reason}
@@ -62,17 +87,30 @@ defmodule HephaestusOban.ExecuteStepWorker do
          step_ref,
          event,
          context_updates,
+         metadata_updates,
          workflow_string
        ) do
     workflow_module = JobMetadata.resolve_workflow(workflow_string)
     job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_ref)
 
     case config.repo.transaction(fn ->
-           :ok = StepResults.insert(config.repo, instance_id, step_ref, event, context_updates)
+           :ok =
+             StepResults.insert(
+               config.repo,
+               instance_id,
+               step_ref,
+               event,
+               context_updates,
+               metadata_updates
+             )
 
            changeset =
              HephaestusOban.AdvanceWorker.new(
-               %{"instance_id" => instance_id, "config_key" => config.key, "workflow" => workflow_string},
+               %{
+                 "instance_id" => instance_id,
+                 "config_key" => config.key,
+                 "workflow" => workflow_string
+               },
                job_meta
              )
 

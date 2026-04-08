@@ -58,7 +58,15 @@ defmodule HephaestusOban.AdvanceWorker do
           %{active_steps: active_steps} ->
             active_steps
             |> MapSet.to_list()
-            |> Enum.each(&enqueue_execute_step(config, instance_id, instance.workflow, &1))
+            |> Enum.each(
+              &enqueue_execute_step(
+                config,
+                instance_id,
+                instance.workflow,
+                &1,
+                instance.runtime_metadata
+              )
+            )
 
             :ok
         end
@@ -110,9 +118,20 @@ defmodule HephaestusOban.AdvanceWorker do
     :ok
   end
 
-  defp enqueue_execute_step(config, instance_id, workflow_module, step_module) do
+  defp enqueue_execute_step(
+         config,
+         instance_id,
+         workflow_module,
+         step_module,
+         runtime_metadata
+       ) do
     retry = RetryConfig.resolve(step_module, workflow_module)
-    job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_module)
+
+    job_meta =
+      JobMetadata.build(workflow_module, instance_id,
+        step_ref: step_module,
+        runtime_metadata: runtime_metadata
+      )
 
     changeset =
       Oban.Job.new(
@@ -157,7 +176,12 @@ defmodule HephaestusOban.AdvanceWorker do
               end
 
             acc
-            |> Engine.complete_step(step_module, event, step_result.context_updates)
+            |> Engine.complete_step(
+              step_module,
+              event,
+              step_result.context_updates,
+              step_result.metadata_updates || %{}
+            )
             |> Engine.activate_transitions(step_module, event)
           end
         end)

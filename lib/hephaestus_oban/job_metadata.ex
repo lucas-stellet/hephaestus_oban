@@ -35,6 +35,8 @@ defmodule HephaestusOban.JobMetadata do
 
     * `:step_ref` — the step module (atom) or stringified module name. When provided,
       a `"step"` key is added to `meta` with the snake_cased short name.
+    * `:runtime_metadata` — a map of dynamic metadata accumulated from step executions.
+      Merged after workflow metadata but before system keys.
 
   ## Examples
 
@@ -48,6 +50,7 @@ defmodule HephaestusOban.JobMetadata do
   @spec build(module(), String.t(), keyword()) :: [meta: map(), tags: [String.t()]]
   def build(workflow_module, instance_id, opts \\ []) do
     step_ref = Keyword.get(opts, :step_ref)
+    runtime_meta = Keyword.get(opts, :runtime_metadata, %{})
 
     workflow_name = short_name(workflow_module)
     workflow_tags = safe_call(workflow_module, :__tags__, [])
@@ -57,7 +60,7 @@ defmodule HephaestusOban.JobMetadata do
       %{"heph_workflow" => workflow_name, "instance_id" => instance_id}
       |> maybe_put("step", step_ref && short_step_name(step_ref))
 
-    meta = Map.merge(workflow_meta, system_meta)
+    meta = workflow_meta |> Map.merge(runtime_meta) |> Map.merge(system_meta)
     tags = Enum.uniq([workflow_name | workflow_tags])
 
     [meta: meta, tags: tags]
