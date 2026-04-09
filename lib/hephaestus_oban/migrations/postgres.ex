@@ -33,8 +33,12 @@ defmodule HephaestusOban.Migrations.Postgres do
     opts = with_defaults(opts, @initial_version)
     initial = max(migrated_version(opts), @initial_version)
 
-    if initial >= opts.version do
-      change(initial..(opts.version + 1)//-1, :down, opts)
+    cond do
+      initial >= opts.version ->
+        change(initial..(opts.version + 1)//-1, :down, opts)
+
+      true ->
+        :ok
     end
   end
 
