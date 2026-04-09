@@ -9,7 +9,12 @@ defmodule HephaestusOban.JobMetadataTest do
       assert [meta: meta, tags: tags] =
                JobMetadata.build(HephaestusOban.Test.LinearWorkflow, "abc-123")
 
-      assert meta == %{"heph_workflow" => "linear_workflow", "instance_id" => "abc-123"}
+      assert meta == %{
+               "heph_workflow" => "linear_workflow",
+               "instance_id" => "abc-123",
+               "workflow_version" => 1
+             }
+
       assert tags == ["linear_workflow"]
     end
 
@@ -69,6 +74,20 @@ defmodule HephaestusOban.JobMetadataTest do
                JobMetadata.build(HephaestusOban.Test.TaggedWorkflow, "abc-123")
 
       assert tags == Enum.uniq(tags)
+    end
+
+    test "meta includes workflow_version from module's __version__/0" do
+      assert [meta: meta, tags: _] =
+               JobMetadata.build(HephaestusOban.Test.VersionedWorkflow, "abc-123")
+
+      assert meta["workflow_version"] == 3
+    end
+
+    test "meta includes workflow_version defaulting to 1 for unversioned workflow" do
+      assert [meta: meta, tags: _] =
+               JobMetadata.build(HephaestusOban.Test.LinearWorkflow, "abc-123")
+
+      assert meta["workflow_version"] == 1
     end
   end
 

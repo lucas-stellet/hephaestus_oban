@@ -12,11 +12,12 @@ defmodule HephaestusOban.JobMetadata do
   |----------|--------|---------|
   | `heph_workflow` | Last segment of workflow module, snake_cased | `"onboard_flow"` |
   | `instance_id` | Workflow execution UUID | `"CBD700A6-..."` |
+  | `workflow_version` | Workflow module's `__version__/0` | `1` |
   | `step` | Last segment of step module, snake_cased (when applicable) | `"validate_user"` |
 
   Custom tags and metadata defined via `use Hephaestus.Workflow` are merged in.
-  System keys (`heph_workflow`, `instance_id`, `step`) always take precedence
-  over custom metadata to prevent accidental overwrites.
+  System keys (`heph_workflow`, `instance_id`, `workflow_version`, `step`)
+  always take precedence over custom metadata to prevent accidental overwrites.
 
   ## Name conversion
 
@@ -56,8 +57,14 @@ defmodule HephaestusOban.JobMetadata do
     workflow_tags = safe_call(workflow_module, :__tags__, [])
     workflow_meta = safe_call(workflow_module, :__metadata__, %{})
 
+    workflow_version = safe_call(workflow_module, :__version__, 1)
+
     system_meta =
-      %{"heph_workflow" => workflow_name, "instance_id" => instance_id}
+      %{
+        "heph_workflow" => workflow_name,
+        "instance_id" => instance_id,
+        "workflow_version" => workflow_version
+      }
       |> maybe_put("step", step_ref && short_step_name(step_ref))
 
     meta = workflow_meta |> Map.merge(runtime_meta) |> Map.merge(system_meta)

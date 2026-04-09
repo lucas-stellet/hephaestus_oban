@@ -6,9 +6,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- V03 migration: `workflow_version` integer column on `hephaestus_step_results` (NOT NULL, default 1).
+- `workflow_version` in Oban job `meta` field, derived from workflow module's `__version__/0`.
+
 ### Changed
 
 - Refactored `HephaestusOban.Migration` into a versioned migration system with orchestrator pattern (V01 for initial `hephaestus_step_results` table, V02 for `metadata_updates` column).
+- Bumped migration orchestrator `@current_version` to 3.
 
 ## [0.3.0] - 2026-04-08
 

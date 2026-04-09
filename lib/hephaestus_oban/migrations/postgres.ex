@@ -4,7 +4,7 @@ defmodule HephaestusOban.Migrations.Postgres do
   use Ecto.Migration
 
   @initial_version 1
-  @current_version 2
+  @current_version 3
   @default_prefix "public"
 
   @valid_prefix ~r/^[a-z_][a-z0-9_]*$/

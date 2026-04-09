@@ -31,3 +31,13 @@ defmodule HephaestusOban.Test.TaggedWorkflow do
   @impl true
   def transit(HephaestusOban.Test.PassStep, :done, _ctx), do: Hephaestus.Steps.Done
 end
+
+defmodule HephaestusOban.Test.VersionedWorkflow do
+  use Hephaestus.Workflow, version: 3
+
+  @impl true
+  def start, do: HephaestusOban.Test.PassStep
+
+  @impl true
+  def transit(HephaestusOban.Test.PassStep, :done, _ctx), do: Hephaestus.Steps.Done
+end
