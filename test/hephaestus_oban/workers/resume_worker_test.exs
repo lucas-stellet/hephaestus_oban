@@ -58,9 +58,11 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
       assert result.step_ref == step_ref
       assert result.event == "resumed"
       assert result.context_updates == %{}
+      assert result.workflow_version == 3
 
       assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
       assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.AsyncWorkflow)
+      assert advance_job.args["workflow_version"] == 3
       assert advance_job.meta["heph_workflow"] == "async_workflow"
       assert advance_job.meta["step"] == "async_step"
       assert "async_workflow" in advance_job.tags
@@ -115,7 +117,8 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
         "step_ref" => step_ref,
         "event" => event,
         "config_key" => config_key,
-        "workflow" => workflow
+        "workflow" => workflow,
+        "workflow_version" => 3
       }
     }
   end

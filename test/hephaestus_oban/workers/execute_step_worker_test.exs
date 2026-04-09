@@ -46,9 +46,11 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       [result] = StepResults.pending_for(ctx.repo, instance.id)
       assert result.step_ref == step_ref
       assert result.event == "done"
+      assert result.workflow_version == 3
 
       assert [advance_job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
       assert advance_job.args["workflow"] == to_string(HephaestusOban.Test.LinearWorkflow)
+      assert advance_job.args["workflow_version"] == 3
       assert advance_job.meta["heph_workflow"] == "linear_workflow"
       assert advance_job.meta["step"] == "pass_step"
       assert "linear_workflow" in advance_job.tags
@@ -171,7 +173,8 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
         "instance_id" => instance_id,
         "step_ref" => step_ref,
         "config_key" => config_key,
-        "workflow" => workflow
+        "workflow" => workflow,
+        "workflow_version" => 3
       }
     }
   end
