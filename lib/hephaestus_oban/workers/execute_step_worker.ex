@@ -108,7 +108,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
                step_ref,
                event,
                context_updates,
-               metadata_updates
+               metadata_updates,
+               workflow_version
              )
 
            changeset =

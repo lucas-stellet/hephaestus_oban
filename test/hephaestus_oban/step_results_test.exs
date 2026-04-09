@@ -119,4 +119,13 @@ defmodule HephaestusOban.StepResultsTest do
       assert result.context_updates == %{"processed" => true, "count" => 42}
     end
   end
+
+  describe "insert/6 with workflow_version" do
+    test "persists workflow_version on the step result", %{instance: inst, repo: repo} do
+      :ok = StepResults.insert(repo, inst.id, "Elixir.SomeStep", "done", %{}, %{}, 3)
+
+      [result] = StepResults.pending_for(repo, inst.id)
+      assert result.workflow_version == 3
+    end
+  end
 end

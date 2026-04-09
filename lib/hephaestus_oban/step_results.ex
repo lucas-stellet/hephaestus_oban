@@ -5,11 +5,28 @@ defmodule HephaestusOban.StepResults do
 
   alias HephaestusOban.Schema.StepResult
 
-  def insert(repo, instance_id, step_ref, event, context_updates, metadata_updates \\ %{}) do
+  def insert(repo, instance_id, step_ref, event, context_updates) do
+    insert(repo, instance_id, step_ref, event, context_updates, %{}, 1)
+  end
+
+  def insert(repo, instance_id, step_ref, event, context_updates, metadata_updates) do
+    insert(repo, instance_id, step_ref, event, context_updates, metadata_updates, 1)
+  end
+
+  def insert(
+        repo,
+        instance_id,
+        step_ref,
+        event,
+        context_updates,
+        metadata_updates,
+        workflow_version
+      ) do
     attrs = %{
       instance_id: instance_id,
       step_ref: step_ref,
       event: event,
+      workflow_version: workflow_version,
       context_updates: context_updates,
       metadata_updates: metadata_updates
     }

@@ -10,6 +10,7 @@ defmodule HephaestusOban.Schema.StepResult do
     field(:instance_id, :binary_id)
     field(:step_ref, :string)
     field(:event, :string)
+    field(:workflow_version, :integer, default: 1)
     field(:context_updates, :map, default: %{})
     field(:metadata_updates, :map, default: %{})
     field(:processed, :boolean, default: false)
@@ -18,7 +19,14 @@ defmodule HephaestusOban.Schema.StepResult do
 
   def changeset(step_result, attrs) do
     step_result
-    |> cast(attrs, [:instance_id, :step_ref, :event, :context_updates, :metadata_updates])
+    |> cast(attrs, [
+      :instance_id,
+      :step_ref,
+      :event,
+      :workflow_version,
+      :context_updates,
+      :metadata_updates
+    ])
     |> validate_required([:instance_id, :step_ref, :event])
   end
 end

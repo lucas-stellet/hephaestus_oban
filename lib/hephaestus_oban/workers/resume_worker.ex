@@ -46,7 +46,16 @@ defmodule HephaestusOban.ResumeWorker do
     job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_ref)
 
     config.repo.transaction(fn ->
-      :ok = StepResults.insert(config.repo, instance_id, step_ref, event, context_updates)
+      :ok =
+        StepResults.insert(
+          config.repo,
+          instance_id,
+          step_ref,
+          event,
+          context_updates,
+          %{},
+          workflow_version
+        )
 
       %{
         "instance_id" => instance_id,
