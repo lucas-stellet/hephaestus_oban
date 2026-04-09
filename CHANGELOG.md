@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Changed
+
+- Refactored `HephaestusOban.Migration` into a versioned migration system with orchestrator pattern (V01 for initial `hephaestus_step_results` table, V02 for `metadata_updates` column).
+
 ## [0.3.0] - 2026-04-08
 
 ### Added

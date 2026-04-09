@@ -1,57 +1,71 @@
 defmodule HephaestusOban.Migration do
-  @moduledoc false
+  @moduledoc """
+  Migrations create and modify the database tables HephaestusOban needs to function.
+
+  ## Usage
+
+  To use migrations in your application you'll need to generate an `Ecto.Migration` that wraps
+  calls to `HephaestusOban.Migration`:
+
+      defmodule MyApp.Repo.Migrations.AddHephaestusOban do
+        use Ecto.Migration
+
+        def up, do: HephaestusOban.Migration.up()
+        def down, do: HephaestusOban.Migration.down()
+      end
+
+  ## Isolation with Prefixes
+
+  HephaestusOban supports namespacing through PostgreSQL schemas (prefixes):
+
+      def up, do: HephaestusOban.Migration.up(prefix: "private")
+      def down, do: HephaestusOban.Migration.down(prefix: "private")
+
+  ## Versioning
+
+  Migrations are versioned and tracked via PostgreSQL table comments. Running `up/1`
+  will only apply migrations that haven't been run yet.
+
+  To upgrade to a specific version:
+
+      def up, do: HephaestusOban.Migration.up(version: 2)
+      def down, do: HephaestusOban.Migration.down(version: 1)
+  """
 
   use Ecto.Migration
 
-  def up do
-    create table(:hephaestus_step_results, primary_key: false) do
-      add(:id, :uuid, primary_key: true, default: fragment("gen_random_uuid()"))
+  @doc """
+  Run the `up` changes for all migrations between the initial version and the current version.
 
-      add(
-        :instance_id,
-        references(:workflow_instances, type: :uuid, on_delete: :delete_all),
-        null: false
-      )
+  ## Options
 
-      add(:step_ref, :string, null: false)
-      add(:event, :string, null: false)
-      add(:context_updates, :map, null: false, default: %{})
-      add(:metadata_updates, :map, null: false, default: %{})
-      add(:processed, :boolean, null: false, default: false)
-      add(:inserted_at, :utc_datetime_usec, null: false, default: fragment("now()"))
-    end
-
-    create(
-      index(:hephaestus_step_results, [:instance_id],
-        where: "NOT processed",
-        name: :idx_step_results_pending
-      )
-    )
-
-    create(
-      unique_index(:hephaestus_step_results, [:instance_id, :step_ref],
-        where: "NOT processed",
-        name: :idx_step_results_unique
-      )
-    )
+    * `:version` — target version (defaults to latest)
+    * `:prefix` — PostgreSQL schema prefix (defaults to `"public"`)
+  """
+  def up(opts \\ []) when is_list(opts) do
+    HephaestusOban.Migrations.Postgres.up(opts)
   end
 
   @doc """
-  Adds the `metadata_updates` column to an existing `hephaestus_step_results` table.
+  Run the `down` changes from the current version to the target version.
 
-  Use this in a migration when upgrading from v0.2.x:
+  ## Options
 
-      def change do
-        HephaestusOban.Migration.add_metadata_updates()
-      end
+    * `:version` — target version to migrate down to (defaults to initial)
+    * `:prefix` — PostgreSQL schema prefix (defaults to `"public"`)
   """
-  def add_metadata_updates do
-    alter table(:hephaestus_step_results) do
-      add_if_not_exists(:metadata_updates, :map, null: false, default: %{})
-    end
+  def down(opts \\ []) when is_list(opts) do
+    HephaestusOban.Migrations.Postgres.down(opts)
   end
 
-  def down do
-    drop(table(:hephaestus_step_results))
+  @doc """
+  Check the latest version the database is migrated to.
+
+  ## Options
+
+    * `:prefix` — PostgreSQL schema prefix (defaults to `"public"`)
+  """
+  def migrated_version(opts \\ []) when is_list(opts) do
+    HephaestusOban.Migrations.Postgres.migrated_version(opts)
   end
 end
