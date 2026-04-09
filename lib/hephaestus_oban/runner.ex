@@ -1,5 +1,21 @@
 defmodule HephaestusOban.Runner do
-  @moduledoc false
+  @moduledoc """
+  Oban-backed `Hephaestus.Runtime.Runner` implementation.
+
+  `start_instance/3` extracts `:workflow_version` from `opts` before persisting
+  the instance and enqueuing the first `AdvanceWorker`. That same version is then
+  propagated through every worker job as `"workflow_version"` so retries,
+  resumes, and step result inserts stay tied to the concrete workflow revision
+  that started the instance.
+
+  ## start_instance/3 options
+
+    * `:storage` — storage backend tuple used to persist instances
+    * `:config_key` — key used to resolve runtime config from `:persistent_term`
+    * `:oban` — Oban instance name used for inserts
+    * `:workflow_version` — workflow revision stored on the instance and passed
+      through Oban job args (defaults to `1`)
+  """
 
   alias Hephaestus.Core.Instance
   alias Hephaestus.Runtime.Runner, as: RunnerBehaviour
@@ -37,6 +53,13 @@ defmodule HephaestusOban.Runner do
   end
 
   @impl RunnerBehaviour
+  @doc """
+  Starts a workflow instance and enqueues the initial `AdvanceWorker`.
+
+  The `:workflow_version` option flows into both `Instance.new/3` and the
+  initial Oban job args as `"workflow_version"`, ensuring downstream workers
+  execute against the same workflow revision.
+  """
   @spec start_instance(module(), map(), keyword()) :: {:ok, String.t()} | {:error, term()}
   def start_instance(workflow, context, opts) when is_atom(workflow) and is_map(context) do
     storage = Keyword.fetch!(opts, :storage)

@@ -42,10 +42,10 @@ defmodule HephaestusOban.JobMetadata do
   ## Examples
 
       iex> HephaestusOban.JobMetadata.build(MyApp.Workflows.OnboardFlow, "abc-123")
-      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123"}, tags: ["onboard_flow"]]
+      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123", "workflow_version" => 1}, tags: ["onboard_flow"]]
 
       iex> HephaestusOban.JobMetadata.build(MyApp.Workflows.OnboardFlow, "abc-123", step_ref: MyApp.Steps.ValidateUser)
-      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123", "step" => "validate_user"}, tags: ["onboard_flow"]]
+      [meta: %{"heph_workflow" => "onboard_flow", "instance_id" => "abc-123", "step" => "validate_user", "workflow_version" => 1}, tags: ["onboard_flow"]]
 
   """
   @spec build(module(), String.t(), keyword()) :: [meta: map(), tags: [String.t()]]

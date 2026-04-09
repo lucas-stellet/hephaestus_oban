@@ -1,5 +1,10 @@
 defmodule HephaestusOban.ResumeWorker do
-  @moduledoc false
+  @moduledoc """
+  Records external resume events and schedules the next advance pass.
+
+  Job args include `"workflow_version"` so resumed executions write step results
+  against the same workflow revision that originally entered the waiting state.
+  """
 
   use Oban.Worker, queue: :hephaestus, max_attempts: 3
 

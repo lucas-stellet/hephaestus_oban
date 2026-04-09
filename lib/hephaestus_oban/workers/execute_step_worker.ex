@@ -1,5 +1,11 @@
 defmodule HephaestusOban.ExecuteStepWorker do
-  @moduledoc false
+  @moduledoc """
+  Executes a single active workflow step.
+
+  Job args include `"workflow_version"`, which is persisted into
+  `hephaestus_step_results` and propagated to the follow-up `AdvanceWorker`
+  enqueue so the full execution chain remains version-aware.
+  """
 
   use Oban.Worker,
     queue: :hephaestus,

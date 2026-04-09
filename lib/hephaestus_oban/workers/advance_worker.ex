@@ -1,5 +1,12 @@
 defmodule HephaestusOban.AdvanceWorker do
-  @moduledoc false
+  @moduledoc """
+  Serialized orchestrator for advancing a workflow instance.
+
+  Job args include `"workflow_version"` alongside the instance and workflow
+  identifiers. When the worker fans out new `ExecuteStepWorker` jobs it forwards
+  that same version so every downstream step execution stays pinned to the
+  workflow revision that created the instance.
+  """
 
   use Oban.Worker,
     queue: :hephaestus,

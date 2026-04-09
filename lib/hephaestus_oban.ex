@@ -22,6 +22,7 @@ defmodule HephaestusOban do
 
     * `meta.heph_workflow` — workflow short name in snake_case (e.g., `"onboard_flow"`)
     * `meta.instance_id` — workflow execution UUID
+    * `meta.workflow_version` — workflow revision number (e.g., `2`)
     * `meta.step` — step short name when applicable (e.g., `"validate_user"`)
     * `tags` — workflow short name plus any custom tags
 

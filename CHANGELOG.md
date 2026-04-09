@@ -9,7 +9,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 ### Added
 
 - Versioned migration system following the Oban pattern (V01, V02, V03).
-- `HephaestusOban.Migrations.up/1` and `down/1` with version tracking via table comments.
+- `HephaestusOban.Migration.up/1` and `down/1` with version tracking via table comments.
 - Migration V03: `workflow_version` integer column on `hephaestus_step_results` (NOT NULL, default 1).
 - `workflow_version` in Oban job args for all workers (AdvanceWorker, ExecuteStepWorker, ResumeWorker).
 - `workflow_version` in JobMetadata for Oban Web observability.
@@ -27,7 +27,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Runtime metadata support: `ExecuteStepWorker` handles `{:ok, event, context_updates, metadata_updates}` from steps.
 - `metadata_updates` column in `hephaestus_step_results` table.
-- `HephaestusOban.Migration.add_metadata_updates/0` for upgrading existing tables.
+- Temporary `add_metadata_updates/0` upgrade helper for existing tables.
 - `runtime_metadata` option in `JobMetadata.build/3` — dynamic metadata from steps appears in Oban job meta.
 
 ### Changed

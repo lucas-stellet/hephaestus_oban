@@ -40,7 +40,7 @@ Oban-backed runner implementing `Hephaestus.Runtime.Runner`. Each workflow step 
 # mix.exs
 defp deps do
   [
-    {:hephaestus, "~> 0.1"},
+    {:hephaestus, "~> 0.2.0"},
     {:hephaestus_ecto, "~> 0.1"},
     {:oban, "~> 2.14"}
   ]
@@ -80,7 +80,9 @@ CREATE TABLE hephaestus_step_results (
   instance_id     UUID         NOT NULL REFERENCES workflow_instances(id) ON DELETE CASCADE,
   step_ref        VARCHAR(255) NOT NULL,
   event           VARCHAR(255) NOT NULL,
+  workflow_version INTEGER     NOT NULL DEFAULT 1,
   context_updates JSONB        NOT NULL DEFAULT '{}',
+  metadata_updates JSONB       NOT NULL DEFAULT '{}',
   processed       BOOLEAN      NOT NULL DEFAULT false,
   inserted_at     TIMESTAMP    NOT NULL DEFAULT now()
 );
@@ -349,12 +351,19 @@ defmodule HephaestusOban.Runner do
   @impl Runner
   def start_instance(workflow, context, opts) do
     storage = Keyword.fetch!(opts, :storage)
+    config_key = Keyword.fetch!(opts, :config_key)
     oban = Keyword.fetch!(opts, :oban)
+    workflow_version = Keyword.get(opts, :workflow_version, 1)
 
-    instance = Instance.new(workflow, context)
+    instance = Instance.new(workflow, workflow_version, context)
     :ok = storage_put(storage, instance)
 
-    Oban.insert(oban, AdvanceWorker.new(%{instance_id: instance.id, config_key: config_key()}))
+    Oban.insert(oban, AdvanceWorker.new(%{
+      "instance_id" => instance.id,
+      "config_key" => config_key,
+      "workflow" => to_string(workflow),
+      "workflow_version" => workflow_version
+    }))
 
     {:ok, instance.id}
   end
@@ -390,7 +399,7 @@ end
 ```
 start_instance(OrderWorkflow, %{order_id: 123})
   │
-  ├─ Instance.new() -> persist via HephaestusEcto.Storage
+  ├─ Instance.new(workflow, workflow_version, context) -> persist via HephaestusEcto.Storage
   └─ Oban.insert(AdvanceWorker)
        │
        ▼
@@ -534,7 +543,7 @@ Generates migration for `hephaestus_step_results` table. Requires `hephaestus_ec
 ```elixir
 # mix.exs
 {:hephaestus_ecto, "~> 0.1"},
-{:hephaestus_oban, "~> 0.1"}
+{:hephaestus_oban, "~> 0.4.0"}
 
 # Generate and run migrations
 $ mix hephaestus_ecto.gen.migration

@@ -11,7 +11,7 @@ Add to your `mix.exs`:
 ```elixir
 def deps do
   [
-    {:hephaestus_oban, "~> 0.2.0"}
+    {:hephaestus_oban, "~> 0.4.0"}
   ]
 end
 ```
@@ -26,6 +26,18 @@ Requires [HephaestusEcto](https://github.com/lucas-stellet/hephaestus_ecto) migr
 mix hephaestus_ecto.gen.migration
 mix hephaestus_oban.gen.migration
 mix ecto.migrate
+```
+
+For existing installs upgrading to workflow versioning, update your migration to
+use the versioned API and run V03:
+
+```elixir
+defmodule MyApp.Repo.Migrations.UpgradeHephaestusObanToV3 do
+  use Ecto.Migration
+
+  def up, do: HephaestusOban.Migration.up(version: 3)
+  def down, do: HephaestusOban.Migration.down(version: 2)
+end
 ```
 
 ### 2. Configure your workflow engine
@@ -55,7 +67,7 @@ children = [
 ```
 start_instance(Workflow, context)
   |
-  +-- Instance.new() --> persist via HephaestusEcto.Storage
+  +-- Instance.new(workflow, workflow_version, context) --> persist via HephaestusEcto.Storage
   +-- Oban.insert(AdvanceWorker)
        |
        v
@@ -85,12 +97,16 @@ start_instance(Workflow, context)
 | Worker | Role | Writes to Instance? |
 |--------|------|---------------------|
 | **AdvanceWorker** | Orchestrator. Reads step_results, applies Engine transitions, persists Instance. Serialized per instance via Oban unique + `pg_advisory_xact_lock`. | Yes (single writer) |
-| **ExecuteStepWorker** | Executes a single step. Writes result to `step_results` table, enqueues AdvanceWorker. Idempotent via existence check. | No |
-| **ResumeWorker** | Handles external events and durable timers. Writes to `step_results`, enqueues AdvanceWorker. | No |
+| **ExecuteStepWorker** | Executes a single step. Writes result to `step_results` table with `workflow_version`, enqueues AdvanceWorker. Idempotent via existence check. | No |
+| **ResumeWorker** | Handles external events and durable timers. Writes to `step_results` with `workflow_version`, enqueues AdvanceWorker. | No |
 
 ### Concurrency model
 
 ExecuteStepWorkers run in parallel during fan-out. They never write to the Instance directly — each inserts its own row into `hephaestus_step_results` (zero contention). The AdvanceWorker is the **single writer** for the Instance, serialized via Oban unique constraint + PostgreSQL advisory lock. All Instance mutations happen atomically inside a `Repo.transaction` with `pg_advisory_xact_lock`.
+
+Every worker job also carries `"workflow_version"` in its args so retries,
+resumes, and fan-out all stay pinned to the concrete workflow revision that
+started the instance.
 
 ### Failure handling
 
@@ -143,6 +159,7 @@ end
 |-------|-------|---------|
 | `meta.heph_workflow` | Workflow short name (snake_case) | `"onboard_flow"` |
 | `meta.instance_id` | Workflow execution UUID | `"CBD700A6-..."` |
+| `meta.workflow_version` | Workflow revision number | `2` |
 | `meta.step` | Step short name (when applicable) | `"validate_user"` |
 | `meta.*` | Custom metadata from workflow definition | `"team": "growth"` |
 | `tags` | Workflow short name + custom tags | `["onboard_flow", "onboarding", "growth"]` |
@@ -152,11 +169,13 @@ end
 ```
 tags:onboard_flow             → all jobs for this workflow type
 meta.instance_id:CBD700...    → all jobs for a specific execution
+meta.workflow_version:2       → all jobs for a specific workflow revision
 meta.step:validate_user       → all executions of a specific step
 meta.team:growth              → custom filter
 ```
 
-Workflows without tags/metadata still get automatic `heph_workflow`, `instance_id`, and `step` fields.
+Workflows without tags/metadata still get automatic `heph_workflow`, `instance_id`,
+`workflow_version`, and `step` fields.
 
 ## Database schema
 
@@ -170,7 +189,9 @@ hephaestus_step_results
 +-- instance_id      UUID (FK -> workflow_instances, ON DELETE CASCADE)
 +-- step_ref         STRING (module name)
 +-- event            STRING (step event or "__async__" sentinel)
++-- workflow_version INTEGER (workflow revision, default 1)
 +-- context_updates  JSONB (step output data)
++-- metadata_updates JSONB (step runtime metadata)
 +-- processed        BOOLEAN (consumed by AdvanceWorker)
 +-- inserted_at      TIMESTAMP
 ```
@@ -207,7 +228,7 @@ The `hephaestus: 10` means up to 10 Oban jobs run concurrently. In a fan-out of 
 - Elixir ~> 1.19
 - Oban >= 2.14
 - PostgreSQL (for advisory locks and JSONB)
-- [Hephaestus](https://github.com/lucas-stellet/hephaestus) ~> 0.1.3
+- [Hephaestus](https://github.com/lucas-stellet/hephaestus) ~> 0.2.0
 - [HephaestusEcto](https://github.com/lucas-stellet/hephaestus_ecto) ~> 0.1
 
 ## License

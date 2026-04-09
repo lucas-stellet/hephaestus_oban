@@ -1,18 +1,38 @@
 defmodule HephaestusOban.StepResults do
-  @moduledoc false
+  @moduledoc """
+  Persistence helpers for `hephaestus_step_results`.
+
+  Step executions and resume events are recorded here before `AdvanceWorker`
+  applies them back to the workflow instance. The final `insert/7` argument is
+  `workflow_version`, which defaults to `1` in the convenience overloads and is
+  persisted with each step result row.
+  """
 
   import Ecto.Query
 
   alias HephaestusOban.Schema.StepResult
 
+  @doc """
+  Inserts a step result with default metadata updates and `workflow_version` `1`.
+  """
   def insert(repo, instance_id, step_ref, event, context_updates) do
     insert(repo, instance_id, step_ref, event, context_updates, %{}, 1)
   end
 
+  @doc """
+  Inserts a step result with explicit metadata updates and `workflow_version` `1`.
+  """
   def insert(repo, instance_id, step_ref, event, context_updates, metadata_updates) do
     insert(repo, instance_id, step_ref, event, context_updates, metadata_updates, 1)
   end
 
+  @doc """
+  Inserts a step result row.
+
+  `workflow_version` should match the version stored on the workflow instance so
+  later analysis can correlate persisted results with the workflow revision that
+  produced them.
+  """
   def insert(
         repo,
         instance_id,

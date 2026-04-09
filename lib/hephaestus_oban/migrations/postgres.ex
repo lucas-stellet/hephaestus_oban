@@ -1,5 +1,14 @@
 defmodule HephaestusOban.Migrations.Postgres do
-  @moduledoc false
+  @moduledoc """
+  PostgreSQL migration orchestrator for `HephaestusOban.Migration`.
+
+  This module applies versioned migration steps (`V01`, `V02`, `V03`, ...)
+  and records the latest applied version in the `hephaestus_step_results`
+  table comment, following the same version-tracking pattern used by Oban.
+
+  `up/1` applies only the missing versions up to the requested target.
+  `down/1` rolls back from the current version down to the requested target.
+  """
 
   use Ecto.Migration
 
@@ -76,7 +85,9 @@ defmodule HephaestusOban.Migrations.Postgres do
   defp record_version(_opts, 0), do: :ok
 
   defp record_version(%{prefix: prefix}, version) do
-    execute("COMMENT ON TABLE #{qualified_table(prefix, "hephaestus_step_results")} IS '#{version}'")
+    execute(
+      "COMMENT ON TABLE #{qualified_table(prefix, "hephaestus_step_results")} IS '#{version}'"
+    )
   end
 
   defp with_defaults(opts, version) do
