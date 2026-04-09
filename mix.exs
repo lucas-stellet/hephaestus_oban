@@ -33,7 +33,7 @@ defmodule HephaestusOban.MixProject do
   defp deps do
     [
       {:hephaestus, path: "../hephaestus_core", override: true},
-      {:hephaestus_ecto, "~> 0.1.0"},
+      {:hephaestus_ecto, path: "../hephaestus_ecto", override: true},
       {:oban, "~> 2.14"},
       {:ecto_sql, "~> 3.10"},
       {:postgrex, ">= 0.0.0"},

@@ -73,6 +73,45 @@ defmodule HephaestusOban.RunnerTest do
       assert job.meta["heph_workflow"] == "linear_workflow"
       assert job.meta["instance_id"] == instance_id
     end
+
+    test "creates instance with workflow_version from opts and includes it in job args", ctx do
+      setup_runner_config(ctx)
+
+      opts = [
+        storage: {HephaestusEcto.Storage, ctx.storage_name},
+        config_key: ctx.config_key,
+        oban: Oban,
+        workflow_version: 2
+      ]
+
+      assert {:ok, instance_id} =
+               Runner.start_instance(HephaestusOban.Test.LinearWorkflow, %{}, opts)
+
+      assert {:ok, instance} = HephaestusEcto.Storage.get(ctx.storage_name, instance_id)
+      assert instance.workflow_version == 2
+
+      assert [job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert job.args["workflow_version"] == 2
+    end
+
+    test "defaults workflow_version to 1 when not provided in opts", ctx do
+      setup_runner_config(ctx)
+
+      opts = [
+        storage: {HephaestusEcto.Storage, ctx.storage_name},
+        config_key: ctx.config_key,
+        oban: Oban
+      ]
+
+      assert {:ok, instance_id} =
+               Runner.start_instance(HephaestusOban.Test.LinearWorkflow, %{}, opts)
+
+      assert {:ok, instance} = HephaestusEcto.Storage.get(ctx.storage_name, instance_id)
+      assert instance.workflow_version == 1
+
+      assert [job] = all_enqueued(worker: HephaestusOban.AdvanceWorker)
+      assert job.args["workflow_version"] == 1
+    end
   end
 
   describe "resume/2" do
@@ -112,7 +151,8 @@ defmodule HephaestusOban.RunnerTest do
   end
 
   describe "schedule_resume/3" do
-    test "enqueues ResumeWorker with scheduled_at, workflow + meta/tags and returns job_id", ctx do
+    test "enqueues ResumeWorker with scheduled_at, workflow + meta/tags and returns job_id",
+         ctx do
       setup_runner_config(ctx)
 
       instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})

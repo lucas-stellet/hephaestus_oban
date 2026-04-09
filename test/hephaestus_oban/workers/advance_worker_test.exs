@@ -31,7 +31,8 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
   end
 
   describe "perform/1 — pending instance with no step_results" do
-    test "advances pending instance to running and enqueues ExecuteStepWorker with workflow + meta/tags", ctx do
+    test "advances pending instance to running and enqueues ExecuteStepWorker with workflow + meta/tags",
+         ctx do
       instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
@@ -52,6 +53,18 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
       assert exec_job.meta["instance_id"] == instance.id
       assert is_binary(exec_job.meta["step"]) and exec_job.meta["step"] != ""
       assert "linear_workflow" in exec_job.tags
+    end
+
+    test "enqueued ExecuteStepWorker jobs include workflow_version from args", ctx do
+      instance = Instance.new(HephaestusOban.Test.VersionedWorkflow, %{})
+      :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
+
+      job = advance_job(ctx.config_key, instance.id, 3)
+
+      assert :ok = AdvanceWorker.perform(job)
+
+      assert [exec_job | _] = all_enqueued(worker: HephaestusOban.ExecuteStepWorker)
+      assert exec_job.args["workflow_version"] == 3
     end
   end
 
@@ -93,7 +106,11 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
 
       assert {:ok, final} = HephaestusEcto.Storage.get(ctx.storage_name, instance.id)
       assert final.status == :completed
-      refute_enqueued worker: HephaestusOban.ExecuteStepWorker, args: %{"instance_id" => instance.id}
+
+      refute_enqueued(
+        worker: HephaestusOban.ExecuteStepWorker,
+        args: %{"instance_id" => instance.id}
+      )
     end
   end
 
@@ -118,7 +135,8 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
   end
 
   describe "perform/1 — resume from waiting" do
-    test "resume step_result on waiting instance transitions to running and completes the step", ctx do
+    test "resume step_result on waiting instance transitions to running and completes the step",
+         ctx do
       instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
       {:ok, instance} = Engine.advance(instance)
       instance = %{instance | status: :waiting, current_step: HephaestusOban.Test.AsyncStep}
@@ -156,8 +174,14 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
     end
   end
 
-  defp advance_job(config_key, instance_id) do
-    %Oban.Job{args: %{"instance_id" => instance_id, "config_key" => config_key}}
+  defp advance_job(config_key, instance_id, workflow_version \\ 1) do
+    %Oban.Job{
+      args: %{
+        "instance_id" => instance_id,
+        "config_key" => config_key,
+        "workflow_version" => workflow_version
+      }
+    }
   end
 
   defp assert_enqueued_execute_steps(active_steps, instance_id, config_key) do

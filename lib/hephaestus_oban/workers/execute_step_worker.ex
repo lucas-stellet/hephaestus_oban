@@ -15,14 +15,16 @@ defmodule HephaestusOban.ExecuteStepWorker do
   @impl Oban.Worker
   def perform(
         %Oban.Job{
-          args: %{
-            "instance_id" => instance_id,
-            "step_ref" => step_ref,
-            "workflow" => workflow_string
-          }
+          args:
+            %{
+              "instance_id" => instance_id,
+              "step_ref" => step_ref,
+              "workflow" => workflow_string
+            } = args
         } = job
       ) do
     config = resolve_config(job)
+    workflow_version = Map.get(args, "workflow_version", 1)
 
     if StepResults.exists?(config.repo, instance_id, step_ref) do
       {:ok, :already_recorded}
@@ -39,7 +41,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
             to_string(event),
             %{},
             %{},
-            workflow_string
+            workflow_string,
+            workflow_version
           )
 
         {:ok, event, context_updates} ->
@@ -50,7 +53,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
             to_string(event),
             context_updates,
             %{},
-            workflow_string
+            workflow_string,
+            workflow_version
           )
 
         {:ok, event, context_updates, metadata_updates} ->
@@ -61,7 +65,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
             to_string(event),
             context_updates,
             metadata_updates,
-            workflow_string
+            workflow_string,
+            workflow_version
           )
 
         {:async} ->
@@ -72,7 +77,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
             "__async__",
             %{},
             %{},
-            workflow_string
+            workflow_string,
+            workflow_version
           )
 
         {:error, reason} ->
@@ -88,7 +94,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
          event,
          context_updates,
          metadata_updates,
-         workflow_string
+         workflow_string,
+         workflow_version
        ) do
     workflow_module = JobMetadata.resolve_workflow(workflow_string)
     job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_ref)
@@ -109,7 +116,8 @@ defmodule HephaestusOban.ExecuteStepWorker do
                %{
                  "instance_id" => instance_id,
                  "config_key" => config.key,
-                 "workflow" => workflow_string
+                 "workflow" => workflow_string,
+                 "workflow_version" => workflow_version
                },
                job_meta
              )

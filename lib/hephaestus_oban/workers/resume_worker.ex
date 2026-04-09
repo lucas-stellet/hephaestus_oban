@@ -8,16 +8,28 @@ defmodule HephaestusOban.ResumeWorker do
   @impl Oban.Worker
   def perform(
         %Oban.Job{
-          args: %{
-            "instance_id" => instance_id,
-            "step_ref" => step_ref,
-            "event" => event,
-            "workflow" => workflow_string
-          }
+          args:
+            %{
+              "instance_id" => instance_id,
+              "step_ref" => step_ref,
+              "event" => event,
+              "workflow" => workflow_string
+            } = args
         } = job
       ) do
     config = resolve_config(job)
-    insert_result_and_advance(config, instance_id, step_ref, event, %{}, workflow_string)
+    workflow_version = Map.get(args, "workflow_version", 1)
+
+    insert_result_and_advance(
+      config,
+      instance_id,
+      step_ref,
+      event,
+      %{},
+      workflow_string,
+      workflow_version
+    )
+
     :ok
   end
 
@@ -27,7 +39,8 @@ defmodule HephaestusOban.ResumeWorker do
         step_ref,
         event,
         context_updates,
-        workflow_string
+        workflow_string,
+        workflow_version
       ) do
     workflow_module = JobMetadata.resolve_workflow(workflow_string)
     job_meta = JobMetadata.build(workflow_module, instance_id, step_ref: step_ref)
@@ -35,7 +48,12 @@ defmodule HephaestusOban.ResumeWorker do
     config.repo.transaction(fn ->
       :ok = StepResults.insert(config.repo, instance_id, step_ref, event, context_updates)
 
-      %{"instance_id" => instance_id, "config_key" => config.key, "workflow" => workflow_string}
+      %{
+        "instance_id" => instance_id,
+        "config_key" => config.key,
+        "workflow" => workflow_string,
+        "workflow_version" => workflow_version
+      }
       |> AdvanceWorker.new(job_meta)
       |> then(&Oban.insert!(config.oban, &1))
     end)

@@ -19,8 +19,9 @@ defmodule HephaestusOban.AdvanceWorker do
   @cancellable_states ["available", "scheduled", "executing", "retryable"]
 
   @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"instance_id" => instance_id}} = job) do
+  def perform(%Oban.Job{args: %{"instance_id" => instance_id} = args} = job) do
     config = resolve_config(job)
+    workflow_version = Map.get(args, "workflow_version", 1)
     <<lock_key::signed-integer-64, _rest::binary>> = Ecto.UUID.dump!(instance_id)
     discarded = detect_discarded_steps(config, instance_id)
 
@@ -64,7 +65,8 @@ defmodule HephaestusOban.AdvanceWorker do
                 instance_id,
                 instance.workflow,
                 &1,
-                instance.runtime_metadata
+                instance.runtime_metadata,
+                workflow_version
               )
             )
 
@@ -123,7 +125,8 @@ defmodule HephaestusOban.AdvanceWorker do
          instance_id,
          workflow_module,
          step_module,
-         runtime_metadata
+         runtime_metadata,
+         workflow_version
        ) do
     retry = RetryConfig.resolve(step_module, workflow_module)
 
@@ -139,7 +142,8 @@ defmodule HephaestusOban.AdvanceWorker do
           "instance_id" => instance_id,
           "config_key" => config.key,
           "step_ref" => to_string(step_module),
-          "workflow" => to_string(workflow_module)
+          "workflow" => to_string(workflow_module),
+          "workflow_version" => workflow_version
         },
         [
           queue: :hephaestus,

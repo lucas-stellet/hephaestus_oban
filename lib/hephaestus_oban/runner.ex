@@ -42,8 +42,9 @@ defmodule HephaestusOban.Runner do
     storage = Keyword.fetch!(opts, :storage)
     config_key = Keyword.fetch!(opts, :config_key)
     oban = Keyword.fetch!(opts, :oban)
+    workflow_version = Keyword.get(opts, :workflow_version, 1)
 
-    instance = Instance.new(workflow, context)
+    instance = Instance.new(workflow, workflow_version, context)
     :ok = storage_put(storage, instance)
 
     job_meta = JobMetadata.build(workflow, instance.id)
@@ -53,7 +54,8 @@ defmodule HephaestusOban.Runner do
         %{
           "instance_id" => instance.id,
           "config_key" => config_key,
-          "workflow" => to_string(workflow)
+          "workflow" => to_string(workflow),
+          "workflow_version" => workflow_version
         },
         job_meta
       )
@@ -93,7 +95,8 @@ defmodule HephaestusOban.Runner do
             "step_ref" => to_string(step_ref),
             "event" => "timeout",
             "config_key" => config.key,
-            "workflow" => to_string(instance.workflow)
+            "workflow" => to_string(instance.workflow),
+            "workflow_version" => instance.workflow_version
           },
           [scheduled_at: DateTime.add(DateTime.utc_now(), delay_ms, :millisecond)] ++ job_meta
         )
@@ -116,7 +119,8 @@ defmodule HephaestusOban.Runner do
           "step_ref" => to_string(step_ref),
           "event" => event,
           "config_key" => config.key,
-          "workflow" => to_string(instance.workflow)
+          "workflow" => to_string(instance.workflow),
+          "workflow_version" => instance.workflow_version
         },
         job_meta
       )
@@ -152,9 +156,11 @@ defmodule HephaestusOban.Runner do
     end)
   end
 
-  defp storage_put({storage_mod, storage_name}, instance), do: storage_mod.put(storage_name, instance)
+  defp storage_put({storage_mod, storage_name}, instance),
+    do: storage_mod.put(storage_name, instance)
 
-  defp storage_get({storage_mod, storage_name}, instance_id), do: storage_mod.get(storage_name, instance_id)
+  defp storage_get({storage_mod, storage_name}, instance_id),
+    do: storage_mod.get(storage_name, instance_id)
 
   defp config_key(key), do: {elem(@config_prefix, 0), elem(@config_prefix, 1), key}
 end
