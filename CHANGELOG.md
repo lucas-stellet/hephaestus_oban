@@ -4,17 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.4.0] - 2026-04-08
 
 ### Added
 
-- V03 migration: `workflow_version` integer column on `hephaestus_step_results` (NOT NULL, default 1).
-- `workflow_version` in Oban job `meta` field, derived from workflow module's `__version__/0`.
+- Versioned migration system following the Oban pattern (V01, V02, V03).
+- `HephaestusOban.Migrations.up/1` and `down/1` with version tracking via table comments.
+- Migration V03: `workflow_version` integer column on `hephaestus_step_results` (NOT NULL, default 1).
+- `workflow_version` in Oban job args for all workers (AdvanceWorker, ExecuteStepWorker, ResumeWorker).
+- `workflow_version` in JobMetadata for Oban Web observability.
 
 ### Changed
 
-- Refactored `HephaestusOban.Migration` into a versioned migration system with orchestrator pattern (V01 for initial `hephaestus_step_results` table, V02 for `metadata_updates` column).
-- Bumped migration orchestrator `@current_version` to 3.
+- Refactored `migration.ex` into versioned modules (V01: initial table, V02: metadata_updates, V03: workflow_version) with orchestrator pattern.
+- `StepResults.insert/1` now persists `workflow_version`.
+- Runner updated to use `Instance.new/3`.
+- Requires `hephaestus ~> 0.2.0`.
 
 ## [0.3.0] - 2026-04-08
 

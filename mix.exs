@@ -1,7 +1,7 @@
 defmodule HephaestusOban.MixProject do
   use Mix.Project
 
-  @version "0.3.0"
+  @version "0.4.0"
   @source_url "https://github.com/lucas-stellet/hephaestus_oban"
 
   def project do
@@ -32,7 +32,7 @@ defmodule HephaestusOban.MixProject do
 
   defp deps do
     [
-      {:hephaestus, path: "../hephaestus_core", override: true},
+      {:hephaestus, "~> 0.2.0", path: "../hephaestus_core", override: true},
       {:hephaestus_ecto, path: "../hephaestus_ecto", override: true},
       {:oban, "~> 2.14"},
       {:ecto_sql, "~> 3.10"},
