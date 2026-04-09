@@ -3,8 +3,8 @@ defmodule HephaestusOban.Migrations.Postgres.V01 do
 
   use Ecto.Migration
 
-  def up(_opts) do
-    create table(:hephaestus_step_results, primary_key: false) do
+  def up(%{prefix: prefix}) do
+    create_if_not_exists table(:hephaestus_step_results, primary_key: false, prefix: prefix) do
       add(:id, :uuid, primary_key: true, default: fragment("gen_random_uuid()"))
 
       add(
@@ -20,22 +20,24 @@ defmodule HephaestusOban.Migrations.Postgres.V01 do
       add(:inserted_at, :utc_datetime_usec, null: false, default: fragment("now()"))
     end
 
-    create(
+    create_if_not_exists(
       index(:hephaestus_step_results, [:instance_id],
         where: "NOT processed",
-        name: :idx_step_results_pending
+        name: :idx_step_results_pending,
+        prefix: prefix
       )
     )
 
-    create(
+    create_if_not_exists(
       unique_index(:hephaestus_step_results, [:instance_id, :step_ref],
         where: "NOT processed",
-        name: :idx_step_results_unique
+        name: :idx_step_results_unique,
+        prefix: prefix
       )
     )
   end
 
-  def down(_opts) do
-    drop(table(:hephaestus_step_results))
+  def down(%{prefix: prefix}) do
+    drop_if_exists(table(:hephaestus_step_results, prefix: prefix))
   end
 end

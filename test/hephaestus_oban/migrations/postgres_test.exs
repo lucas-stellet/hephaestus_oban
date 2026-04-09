@@ -17,18 +17,37 @@ defmodule HephaestusOban.Migrations.PostgresTest do
         log: false
       )
 
-      assert 0 = Postgres.migrated_version(opts)
+      try do
+        assert 0 = Postgres.migrated_version(opts)
+      after
+        TestRepo.query!(
+          "COMMENT ON TABLE \"public\".hephaestus_step_results IS '#{Postgres.current_version()}'",
+          [],
+          log: false
+        )
+      end
     end
 
-    test "returns an integer for a migrated database", %{opts: opts} do
-      assert version = Postgres.migrated_version(opts)
-      assert is_integer(version)
+    test "returns correct version for a migrated database", %{opts: opts} do
+      assert Postgres.migrated_version(opts) == Postgres.current_version()
+    end
+
+    test "returns 0 when table does not exist" do
+      prefix = "migration_oban_test_#{System.unique_integer([:positive])}"
+      TestRepo.query!("CREATE SCHEMA #{prefix}")
+
+      try do
+        assert 0 = Postgres.migrated_version(repo: TestRepo, prefix: prefix)
+      after
+        TestRepo.query!("DROP SCHEMA IF EXISTS #{prefix} CASCADE")
+      end
     end
   end
 
   describe "up/1 idempotency" do
-    test "calling up/1 twice is a no-op", %{opts: opts} do
+    test "calling up/1 when already at current version is a no-op", %{opts: opts} do
       assert :ok = Postgres.up(opts)
+      assert Postgres.migrated_version(opts) == Postgres.current_version()
     end
   end
 

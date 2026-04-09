@@ -55,10 +55,14 @@ defmodule HephaestusOban.Migrations.Postgres do
     opts = with_defaults(opts, @initial_version)
 
     repo = Map.get_lazy(opts, :repo, fn -> repo() end)
-    table = qualified_table(opts.prefix, "hephaestus_step_results")
+    escaped_prefix = Map.fetch!(opts, :escaped_prefix)
 
     query = """
-    SELECT pg_catalog.obj_description('#{table}'::regclass, 'pg_class')
+    SELECT pg_catalog.obj_description(pg_class.oid, 'pg_class')
+    FROM pg_class
+    LEFT JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace
+    WHERE pg_class.relname = 'hephaestus_step_results'
+    AND pg_namespace.nspname = '#{escaped_prefix}'
     """
 
     case repo.query(query, [], log: false) do
@@ -84,10 +88,8 @@ defmodule HephaestusOban.Migrations.Postgres do
 
   defp record_version(_opts, 0), do: :ok
 
-  defp record_version(%{prefix: prefix}, version) do
-    execute(
-      "COMMENT ON TABLE #{qualified_table(prefix, "hephaestus_step_results")} IS '#{version}'"
-    )
+  defp record_version(%{quoted_prefix: quoted}, version) do
+    execute("COMMENT ON TABLE #{quoted}.hephaestus_step_results IS '#{version}'")
   end
 
   defp with_defaults(opts, version) do
@@ -96,6 +98,7 @@ defmodule HephaestusOban.Migrations.Postgres do
     validate_prefix!(opts.prefix)
 
     opts
+    |> Map.put(:quoted_prefix, inspect(opts.prefix))
     |> Map.put(:escaped_prefix, String.replace(opts.prefix, "'", "\\'"))
   end
 
@@ -105,7 +108,4 @@ defmodule HephaestusOban.Migrations.Postgres do
             "invalid prefix #{inspect(prefix)} — must match #{inspect(@valid_prefix)}"
     end
   end
-
-  defp qualified_table("public", table), do: table
-  defp qualified_table(prefix, table), do: "#{prefix}.#{table}"
 end

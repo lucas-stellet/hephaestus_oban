@@ -4,6 +4,18 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.4.1] - 2026-04-09
+
+### Fixed
+
+- Fixed `migrated_version/1` query — replaced `::regclass` cast (which crashes when the table doesn't exist on fresh install, aborting the DDL transaction) with a safe `pg_class` + `pg_namespace` JOIN query. Host applications no longer need `@disable_ddl_transaction` in their migration files.
+- Fixed `record_version/2` to always include the schema prefix using `quoted_prefix`.
+- Made V01 migration fully idempotent: `create` → `create_if_not_exists` for table and indexes.
+- Added `:prefix` support to all migration versions (V01, V02, V03) for multi-tenant use.
+- Removed unused `qualified_table/2` private function from the orchestrator.
+- Added `quoted_prefix` to opts (via `with_defaults/2`) following Oban's pattern.
+- Added migration tests for `migrated_version` when table doesn't exist.
+
 ## [0.4.0] - 2026-04-08
 
 ### Added
