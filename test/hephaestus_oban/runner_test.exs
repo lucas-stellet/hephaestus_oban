@@ -51,7 +51,8 @@ defmodule HephaestusOban.RunnerTest do
       opts = [
         storage: {HephaestusEcto.Storage, ctx.storage_name},
         config_key: ctx.config_key,
-        oban: Oban
+        oban: Oban,
+        id: "testoban::test#{System.unique_integer([:positive])}"
       ]
 
       assert {:ok, instance_id} =
@@ -81,6 +82,7 @@ defmodule HephaestusOban.RunnerTest do
         storage: {HephaestusEcto.Storage, ctx.storage_name},
         config_key: ctx.config_key,
         oban: Oban,
+        id: "testoban::test#{System.unique_integer([:positive])}",
         workflow_version: 2
       ]
 
@@ -100,7 +102,8 @@ defmodule HephaestusOban.RunnerTest do
       opts = [
         storage: {HephaestusEcto.Storage, ctx.storage_name},
         config_key: ctx.config_key,
-        oban: Oban
+        oban: Oban,
+        id: "testoban::test#{System.unique_integer([:positive])}"
       ]
 
       assert {:ok, instance_id} =
@@ -118,7 +121,13 @@ defmodule HephaestusOban.RunnerTest do
     test "enqueues ResumeWorker with current_step, event, workflow + meta/tags", ctx do
       setup_runner_config(ctx)
 
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::test#{System.unique_integer([:positive])}"
+        )
 
       instance = %{
         instance
@@ -155,7 +164,13 @@ defmodule HephaestusOban.RunnerTest do
          ctx do
       setup_runner_config(ctx)
 
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::test#{System.unique_integer([:positive])}"
+        )
 
       instance = %{
         instance
@@ -194,7 +209,13 @@ defmodule HephaestusOban.RunnerTest do
     test "scheduled_at is approximately delay_ms in the future", ctx do
       setup_runner_config(ctx)
 
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::test#{System.unique_integer([:positive])}"
+        )
       instance = %{instance | status: :waiting, current_step: HephaestusOban.Test.AsyncStep}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 

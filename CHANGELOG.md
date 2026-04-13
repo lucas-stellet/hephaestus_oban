@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.5.0] - 2026-04-13
+
+### Added
+
+- Migration V04: changes `hephaestus_step_results.instance_id` from `uuid` to `varchar(255)` to support business key IDs (`"key::value"` format).
+- Storage filter verification tests for `:id`, `:status_in`, `:workflow_version`, and combined filters.
+
+### Changed
+
+- **Breaking:** `start_instance/3` now requires `:id` in opts — the runner passes it to `Instance.new/4` (explicit business key ID).
+- V01 migration updated to create FK with `type: :string` (compatible with fresh installs on hephaestus_ecto 0.3.0+).
+- `StepResult` schema: `instance_id` field changed from `:binary_id` to `:string`.
+- Advisory lock key generation uses `:erlang.phash2/1` instead of `Ecto.UUID.dump!/1` (supports non-UUID instance IDs).
+- All test workflows declare `unique: [key: "testoban"]` (required by hephaestus 0.3.0).
+- Requires `hephaestus ~> 0.3.0` and `hephaestus_ecto ~> 0.3.0`.
+
 ## [0.4.1] - 2026-04-09
 
 ### Fixed

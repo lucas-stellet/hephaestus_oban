@@ -9,7 +9,7 @@ defmodule HephaestusOban.Migrations.Postgres.V01 do
 
       add(
         :instance_id,
-        references(:workflow_instances, type: :uuid, on_delete: :delete_all),
+        references(:workflow_instances, type: :string, on_delete: :delete_all),
         null: false
       )
 

@@ -5,7 +5,7 @@ defmodule HephaestusOban.IntegrationTest do
   alias HephaestusOban.{Runner, StepResults}
 
   defmodule ContextWorkflow do
-    use Hephaestus.Workflow
+    use Hephaestus.Workflow, unique: [key: "testoban"]
 
     @impl true
     def start, do: HephaestusOban.Test.PassWithContextStep
@@ -194,7 +194,12 @@ defmodule HephaestusOban.IntegrationTest do
   end
 
   defp runner_opts(ctx) do
-    [storage: {HephaestusEcto.Storage, ctx.storage_name}, config_key: ctx.config_key, oban: Oban]
+    [
+      storage: {HephaestusEcto.Storage, ctx.storage_name},
+      config_key: ctx.config_key,
+      oban: Oban,
+      id: "testoban::int#{System.unique_integer([:positive])}"
+    ]
   end
 
   defp load_instance(storage_name, instance_id) do

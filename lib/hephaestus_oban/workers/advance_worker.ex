@@ -29,7 +29,7 @@ defmodule HephaestusOban.AdvanceWorker do
   def perform(%Oban.Job{args: %{"instance_id" => instance_id} = args} = job) do
     config = resolve_config(job)
     workflow_version = Map.get(args, "workflow_version", 1)
-    <<lock_key::signed-integer-64, _rest::binary>> = Ecto.UUID.dump!(instance_id)
+    lock_key = :erlang.phash2(instance_id)
     discarded = detect_discarded_steps(config, instance_id)
 
     result =

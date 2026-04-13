@@ -33,7 +33,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — synchronous step success" do
     test "executes step, inserts step_result with event, enqueues AdvanceWorker", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
@@ -60,7 +66,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — step with context updates" do
     test "stores context_updates in step_result", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       instance = %{instance | active_steps: MapSet.new([HephaestusOban.Test.PassWithContextStep])}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
@@ -79,7 +91,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — async step" do
     test "inserts __async__ sentinel step_result and enqueues AdvanceWorker", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.AsyncStep)
@@ -104,7 +122,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — step failure" do
     test "returns error for Oban retry when step fails", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       instance = %{instance | active_steps: MapSet.new([HephaestusOban.Test.FailStep])}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
@@ -123,7 +147,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — idempotency" do
     test "skips execution when step_result already exists", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
@@ -142,7 +172,13 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
   describe "perform/1 — atomicity" do
     test "step_result and AdvanceWorker enqueue are in same transaction", ctx do
       # Arrange
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::exec#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
       step_ref = to_string(HephaestusOban.Test.PassStep)
@@ -178,4 +214,5 @@ defmodule HephaestusOban.Workers.ExecuteStepWorkerTest do
       }
     }
   end
+
 end

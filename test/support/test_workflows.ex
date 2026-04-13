@@ -1,5 +1,5 @@
 defmodule HephaestusOban.Test.LinearWorkflow do
-  use Hephaestus.Workflow
+  use Hephaestus.Workflow, unique: [key: "testoban"]
 
   @impl true
   def start, do: HephaestusOban.Test.PassStep
@@ -9,7 +9,7 @@ defmodule HephaestusOban.Test.LinearWorkflow do
 end
 
 defmodule HephaestusOban.Test.AsyncWorkflow do
-  use Hephaestus.Workflow
+  use Hephaestus.Workflow, unique: [key: "testoban"]
 
   @impl true
   def start, do: HephaestusOban.Test.AsyncStep
@@ -23,7 +23,8 @@ end
 defmodule HephaestusOban.Test.TaggedWorkflow do
   use Hephaestus.Workflow,
     tags: ["onboarding", "growth"],
-    metadata: %{"team" => "growth"}
+    metadata: %{"team" => "growth"},
+    unique: [key: "testoban"]
 
   @impl true
   def start, do: HephaestusOban.Test.PassStep
@@ -33,7 +34,7 @@ defmodule HephaestusOban.Test.TaggedWorkflow do
 end
 
 defmodule HephaestusOban.Test.VersionedWorkflow do
-  use Hephaestus.Workflow, version: 3
+  use Hephaestus.Workflow, version: 3, unique: [key: "testoban"]
 
   @impl true
   def start, do: HephaestusOban.Test.PassStep

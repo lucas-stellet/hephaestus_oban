@@ -41,7 +41,7 @@ defmodule HephaestusOban.FailureHandlerTest do
   describe "handle_event/4 for discarded ExecuteStepWorker jobs" do
     test "AdvanceWorker created on discard has correct meta and tags", ctx do
       # Arrange
-      instance_id = Ecto.UUID.generate()
+      instance_id = "testoban::fh#{System.unique_integer([:positive])}"
 
       job = %Oban.Job{
         worker: @execute_step_worker,
@@ -76,7 +76,7 @@ defmodule HephaestusOban.FailureHandlerTest do
   describe "handle_event/4 for discarded non-ExecuteStepWorker jobs" do
     test "ignores discarded AdvanceWorker jobs", ctx do
       # Arrange
-      instance_id = Ecto.UUID.generate()
+      instance_id = "testoban::fh#{System.unique_integer([:positive])}"
 
       job = %Oban.Job{
         worker: "Elixir.HephaestusOban.AdvanceWorker",
@@ -104,7 +104,7 @@ defmodule HephaestusOban.FailureHandlerTest do
       # Arrange
       job = %Oban.Job{
         worker: @execute_step_worker,
-        args: %{"instance_id" => Ecto.UUID.generate(), "config_key" => "irrelevant"},
+        args: %{"instance_id" => "testoban::fh#{System.unique_integer([:positive])}", "config_key" => "irrelevant"},
         queue: "hephaestus"
       }
 
@@ -125,7 +125,7 @@ defmodule HephaestusOban.FailureHandlerTest do
       # Arrange
       job = %Oban.Job{
         worker: @execute_step_worker,
-        args: %{"instance_id" => Ecto.UUID.generate(), "config_key" => "irrelevant"},
+        args: %{"instance_id" => "testoban::fh#{System.unique_integer([:positive])}", "config_key" => "irrelevant"},
         queue: "hephaestus"
       }
 

@@ -13,6 +13,7 @@ defmodule HephaestusOban.Runner do
     * `:storage` — storage backend tuple used to persist instances
     * `:config_key` — key used to resolve runtime config from `:persistent_term`
     * `:oban` — Oban instance name used for inserts
+    * `:id` — required business key used as the workflow instance id
     * `:workflow_version` — workflow revision stored on the instance and passed
       through Oban job args (defaults to `1`)
   """
@@ -56,7 +57,8 @@ defmodule HephaestusOban.Runner do
   @doc """
   Starts a workflow instance and enqueues the initial `AdvanceWorker`.
 
-  The `:workflow_version` option flows into both `Instance.new/3` and the
+  The required `:id` option and `:workflow_version` option flow into
+  `Instance.new/4` and the
   initial Oban job args as `"workflow_version"`, ensuring downstream workers
   execute against the same workflow revision.
   """
@@ -66,8 +68,9 @@ defmodule HephaestusOban.Runner do
     config_key = Keyword.fetch!(opts, :config_key)
     oban = Keyword.fetch!(opts, :oban)
     workflow_version = Keyword.get(opts, :workflow_version, 1)
+    id = Keyword.fetch!(opts, :id)
 
-    instance = Instance.new(workflow, workflow_version, context)
+    instance = Instance.new(workflow, workflow_version, context, id)
     :ok = storage_put(storage, instance)
 
     job_meta = JobMetadata.build(workflow, instance.id)

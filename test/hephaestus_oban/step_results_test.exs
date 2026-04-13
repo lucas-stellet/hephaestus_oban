@@ -8,7 +8,13 @@ defmodule HephaestusOban.StepResultsTest do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(HephaestusOban.TestRepo)
 
     # Arrange — persist an instance so FK constraints are satisfied
-    instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+    instance =
+      Instance.new(
+        HephaestusOban.Test.LinearWorkflow,
+        1,
+        %{},
+        "testoban::sr#{System.unique_integer([:positive])}"
+      )
     HephaestusEcto.Storage.start_link(repo: HephaestusOban.TestRepo, name: :test_sr_storage)
     HephaestusEcto.Storage.put(:test_sr_storage, instance)
 
@@ -128,4 +134,5 @@ defmodule HephaestusOban.StepResultsTest do
       assert result.workflow_version == 3
     end
   end
+
 end

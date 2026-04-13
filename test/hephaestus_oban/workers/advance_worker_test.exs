@@ -33,7 +33,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
   describe "perform/1 — pending instance with no step_results" do
     test "advances pending instance to running and enqueues ExecuteStepWorker with workflow + meta/tags",
          ctx do
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
       job = advance_job(ctx.config_key, instance.id)
@@ -56,7 +62,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
     end
 
     test "enqueued ExecuteStepWorker jobs include workflow_version from args", ctx do
-      instance = Instance.new(HephaestusOban.Test.VersionedWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.VersionedWorkflow,
+          3,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
       job = advance_job(ctx.config_key, instance.id, 3)
@@ -70,7 +82,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
 
   describe "perform/1 — applying step_results" do
     test "applies completed step results in fifo order and activates transitions", ctx do
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
@@ -92,7 +110,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
 
   describe "perform/1 — instance reaches completion" do
     test "marks instance as completed when the workflow reaches the done step", ctx do
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       instance = Engine.complete_step(instance, HephaestusOban.Test.PassStep, :done, %{})
       instance = Engine.activate_transitions(instance, HephaestusOban.Test.PassStep, :done)
@@ -116,7 +140,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
 
   describe "perform/1 — async sentinel handling" do
     test "__async__ step_result sets instance to waiting with current_step", ctx do
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
@@ -137,7 +167,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
   describe "perform/1 — resume from waiting" do
     test "resume step_result on waiting instance transitions to running and completes the step",
          ctx do
-      instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.AsyncWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       instance = %{instance | status: :waiting, current_step: HephaestusOban.Test.AsyncStep}
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
@@ -158,7 +194,13 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
 
   describe "perform/1 — discarded step detection" do
     test "discarded ExecuteStepWorker marks the workflow failed", ctx do
-      instance = Instance.new(HephaestusOban.Test.LinearWorkflow, %{})
+      instance =
+        Instance.new(
+          HephaestusOban.Test.LinearWorkflow,
+          1,
+          %{},
+          "testoban::adv#{System.unique_integer([:positive])}"
+        )
       {:ok, instance} = Engine.advance(instance)
       :ok = HephaestusEcto.Storage.put(ctx.storage_name, instance)
 
@@ -210,4 +252,5 @@ defmodule HephaestusOban.Workers.AdvanceWorkerTest do
       attempt: 5
     })
   end
+
 end

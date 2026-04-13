@@ -7,7 +7,7 @@ defmodule HephaestusOban.Schema.StepResult do
 
   @primary_key {:id, :binary_id, autogenerate: true}
   schema "hephaestus_step_results" do
-    field(:instance_id, :binary_id)
+    field(:instance_id, :string)
     field(:step_ref, :string)
     field(:event, :string)
     field(:workflow_version, :integer, default: 1)

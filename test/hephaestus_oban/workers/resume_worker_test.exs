@@ -23,7 +23,13 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
 
     :persistent_term.put({HephaestusOban, :config, config_key}, config)
 
-    instance = Instance.new(HephaestusOban.Test.AsyncWorkflow, %{})
+    instance =
+      Instance.new(
+        HephaestusOban.Test.AsyncWorkflow,
+        1,
+        %{},
+        "testoban::res#{System.unique_integer([:positive])}"
+      )
 
     instance = %{
       instance
@@ -122,4 +128,5 @@ defmodule HephaestusOban.Workers.ResumeWorkerTest do
       }
     }
   end
+
 end
